@@ -31,11 +31,17 @@ type ProxyConfig struct {
 type MailConfig struct {
 	ProviderPriority string         `mapstructure:"provider_priority"`
 	YYDS             YYDSMailConfig `mapstructure:"yydsmail"`
+	Ahem             AhemConfig     `mapstructure:"ahem"`
 }
 
 type YYDSMailConfig struct {
 	BaseURL string `mapstructure:"base_url"`
 	APIKey  string `mapstructure:"api_key"`
+}
+
+type AhemConfig struct {
+	BaseURL string `mapstructure:"base_url"`
+	Domains string `mapstructure:"domains"`
 }
 
 type TurnstileConfig struct {
@@ -101,6 +107,8 @@ func (c *Config) ToGrokConfig() common.Config {
 		"yescaptcha_key":        c.Turnstile.YesCaptchaKey,
 		"yydsmail_base_url":     c.Mail.YYDS.BaseURL,
 		"yydsmail_api_key":      c.Mail.YYDS.APIKey,
+		"ahem_base_url":         c.Mail.Ahem.BaseURL,
+		"ahem_domains":          c.Mail.Ahem.Domains,
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }
@@ -111,6 +119,8 @@ func (c *Config) ToFireworksConfig() common.Config {
 		"fireworks_reg_url":      c.Fireworks.ServiceURL,
 		"yydsmail_base_url":      c.Mail.YYDS.BaseURL,
 		"yydsmail_api_key":       c.Mail.YYDS.APIKey,
+		"ahem_base_url":          c.Mail.Ahem.BaseURL,
+		"ahem_domains":           c.Mail.Ahem.Domains,
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }

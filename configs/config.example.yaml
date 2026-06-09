@@ -6,10 +6,17 @@ proxy:
   pool: []
 
 mail:
-  provider_priority: "yydsmail"
+  provider_priority: "ahem,yydsmail"
   yydsmail:
     base_url: ""
     api_key: ""
+  ahem:
+    # AHEM 临时邮箱服务地址（如 https://mail.example.com）
+    # 基于 https://github.com/o4oren/Ad-Hoc-Email-Server 搭建
+    # 无需认证，任意前缀@域名即可收信
+    base_url: ""
+    # 可用域名列表（逗号分隔）。留空则自动从 /api/properties 获取
+    domains: ""
 
 turnstile:
   solver_urls: []

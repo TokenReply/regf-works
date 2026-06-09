@@ -51,6 +51,7 @@ func main() {
 	// 注册路由
 	grokHandler := handler.NewGrokHandler(cfg)
 	fireworksHandler := handler.NewFireworksHandler(cfg)
+	settingsHandler := handler.NewSettingsHandler(cfg)
 
 	api := r.Group("/api")
 	{
@@ -63,6 +64,15 @@ func main() {
 		})
 		api.POST("/grok/register", grokHandler.Register)
 		api.POST("/fireworks/register", fireworksHandler.Register)
+
+		// 设置接口（前端可用于动态配置邮箱服务地址等）
+		settings := api.Group("/settings")
+		{
+			settings.GET("/mail", settingsHandler.GetMailSettings)
+			settings.POST("/mail", settingsHandler.UpdateMailSettings)
+			settings.GET("/proxy", settingsHandler.GetProxySettings)
+			settings.POST("/proxy", settingsHandler.UpdateProxySettings)
+		}
 	}
 
 	// 启动 HTTP 服务
