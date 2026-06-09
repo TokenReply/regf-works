@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
 	"strings"
 	"time"
@@ -14,6 +16,13 @@ var jwtSecret []byte
 // SetJWTSecret 设置 JWT 签名密钥
 func SetJWTSecret(secret string) {
 	jwtSecret = []byte(secret)
+}
+
+// RotateSecret 更换 JWT Secret，使所有现有 token 立即失效
+func RotateSecret() {
+	buf := make([]byte, 32)
+	rand.Read(buf)
+	jwtSecret = []byte(hex.EncodeToString(buf))
 }
 
 // GenerateToken 为用户生成 JWT token

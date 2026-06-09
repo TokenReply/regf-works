@@ -162,6 +162,28 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
           <div id="proxy-msg" class="text-sm hidden"></div>
         </div>
       </div>
+
+      <!-- 账号安全 -->
+      <div class="card">
+        <h2 class="text-lg font-semibold mb-4 text-red-400">账号安全</h2>
+        <p class="text-sm text-gray-400 mb-4">修改后将自动退出登录，需要使用新凭据重新登录。</p>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">新用户名</label>
+            <input id="set-new-username" type="text" class="input-field" placeholder="留空则不修改">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">新密码</label>
+            <input id="set-new-password" type="password" class="input-field" placeholder="留空则不修改（至少 6 位）">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-400 mb-1">确认新密码</label>
+            <input id="set-new-password2" type="password" class="input-field" placeholder="再次输入新密码">
+          </div>
+          <button class="btn-danger" onclick="changeCredentials()">修改账号信息</button>
+          <div id="cred-msg" class="text-sm hidden"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -470,6 +492,57 @@ async function saveProxySettings() {
     setTimeout(() => msgEl.classList.add('hidden'), 3000);
   } catch {
     msgEl.textContent = '保存失败';
+    msgEl.className = 'text-sm text-red-400';
+    msgEl.classList.remove('hidden');
+  }
+}
+
+async function changeCredentials() {
+  const msgEl = document.getElementById('cred-msg');
+  const newUsername = document.getElementById('set-new-username').value.trim();
+  const newPassword = document.getElementById('set-new-password').value;
+  const newPassword2 = document.getElementById('set-new-password2').value;
+
+  if (!newUsername && !newPassword) {
+    msgEl.textContent = '请输入新用户名或新密码';
+    msgEl.className = 'text-sm text-red-400';
+    msgEl.classList.remove('hidden');
+    return;
+  }
+
+  if (newPassword && newPassword !== newPassword2) {
+    msgEl.textContent = '两次密码输入不一致';
+    msgEl.className = 'text-sm text-red-400';
+    msgEl.classList.remove('hidden');
+    return;
+  }
+
+  if (newPassword && newPassword.length < 6) {
+    msgEl.textContent = '密码至少 6 个字符';
+    msgEl.className = 'text-sm text-red-400';
+    msgEl.classList.remove('hidden');
+    return;
+  }
+
+  if (!confirm('确定要修改账号信息？修改后需要重新登录。')) return;
+
+  const body = {};
+  if (newUsername) body.new_username = newUsername;
+  if (newPassword) body.new_password = newPassword;
+
+  try {
+    const resp = await api('POST', '/api/auth/credentials', body);
+    const data = await resp.json();
+    if (data.logout) {
+      alert('账号信息已更新，请使用新凭据重新登录。');
+      doLogout();
+    } else if (data.error) {
+      msgEl.textContent = data.error;
+      msgEl.className = 'text-sm text-red-400';
+      msgEl.classList.remove('hidden');
+    }
+  } catch {
+    msgEl.textContent = '修改失败';
     msgEl.className = 'text-sm text-red-400';
     msgEl.classList.remove('hidden');
   }

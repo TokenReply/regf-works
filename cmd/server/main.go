@@ -78,6 +78,7 @@ func main() {
 		protected.Use(middleware.AuthRequired())
 		{
 			protected.GET("/auth/me", authHandler.Me)
+			protected.POST("/auth/credentials", authHandler.ChangeCredentials)
 			protected.POST("/grok/register", grokHandler.Register)
 			protected.POST("/fireworks/register", fireworksHandler.Register)
 
