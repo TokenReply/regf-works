@@ -1,7 +1,7 @@
 # 默认 Dockerfile — 构建 full 版本（Fireworks + Grok + Solver）
 # 如需仅构建 Fireworks 轻量版，使用: docker build -f Dockerfile.lite .
 
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git
 
