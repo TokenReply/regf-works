@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+proxy:
+  default: ""
+  pool: []
+
+mail:
+  provider_priority: "yydsmail"
+  yydsmail:
+    base_url: ""
+    api_key: ""
+
+turnstile:
+  solver_urls: []
+  solver_proxy: ""
+  capsolver_key: ""
+  yescaptcha_key: ""
+
+grok:
+  site_key: "0x4AAAAAAAhr9JGVDZbrZOo0"
+  action_id: ""
+  state_tree: ""
+  cf_bypass_solver_url: ""
+
+fireworks:
+  service_url: "http://127.0.0.1:5000"
+  max_concurrent: 10
