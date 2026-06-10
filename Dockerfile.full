@@ -47,9 +47,8 @@ COPY --from=builder /bin/reg-cli /app/reg-cli
 COPY scripts/requirements-full.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
 
-# 安装 Camoufox 浏览器二进制（延迟到启动时，避免构建时 GitHub API 限流）
-# 浏览器会在首次启动时通过 entrypoint 下载并缓存到 /app/.camoufox/
-ENV CAMOUFOX_HOME=/app/.camoufox
+# 安装 Camoufox 浏览器二进制（重试逻辑避免偶发的 GitHub API 限流）
+RUN for i in 1 2 3; do python -m camoufox fetch && break || sleep 10; done
 
 # 脚本和配置
 COPY scripts/fireworks_reg.py /app/scripts/fireworks_reg.py
