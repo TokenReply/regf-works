@@ -87,12 +87,13 @@ FIREWORKS_APP_BASE = "https://app.fireworks.ai"
 FIREWORKS_COGNITO_BASE = "https://cognito-idp.us-west-2.amazonaws.com/"
 
 # Server Action IDs — 跟 fireworks 前端部署哈希强耦合，升级时需要重新抓
-FIREWORKS_ACTION_SIGNUP      = "40d64cecd7dbdc34aa3010e9b78a234439f2b7c8fb"
+# 最后更新: 2026-06-10
+FIREWORKS_ACTION_SIGNUP      = "408aa536b5191228ace5bd1baade455dd72b26da9e"
 FIREWORKS_ACTION_LOGIN       = "40466ede9ac5c197ca26c06e5e0faa1e3fe2c3995f"
 FIREWORKS_ACTION_ONBOARDING  = "602082cc61102575a0ebffac1f154bfb7421257b11"
 FIREWORKS_ACTION_CREATE_KEY  = "704939dc750057ce0d3374513780b2619fa0d04363"
 
-FIREWORKS_ROUTER_SIGNUP     = '[""%2C{"children":["(v2-auth)"%2C{"children":["signup"%2C{"children":["__PAGE__"%2C{}]}]}]}%2Cnull%2Cnull%2Ctrue]'
+FIREWORKS_ROUTER_SIGNUP     = '%5B%22%22%2C%7B%22children%22%3A%5B%22(v2-auth)%22%2C%7B%22children%22%3A%5B%22signup%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%5D%7D%2Cnull%2Cnull%2Ctrue%5D'
 FIREWORKS_ROUTER_LOGIN      = '[""%2C{"children":["(v2-auth)"%2C{"children":["login"%2C{"children":["email"%2C{"children":["__PAGE__"%2C{}]}]}]}]}%2Cnull%2Cnull%2Ctrue]'
 FIREWORKS_ROUTER_ONBOARDING = '[""%2C{"children":["(v2-auth)"%2C{"children":["onboarding"%2C{"children":["__PAGE__"%2C{}]}]}]}%2Cnull%2Cnull%2Ctrue]'
 FIREWORKS_ROUTER_APIKEYS    = '[""%2C{"children":["(console)"%2C{"children":["settings"%2C{"children":["users"%2C{"children":["api-keys"%2C{"children":["__PAGE__"%2C{}]}]}]}]}]}%2Cnull%2Cnull%2Ctrue]'
