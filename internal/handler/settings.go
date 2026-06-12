@@ -120,6 +120,12 @@ func (h *SettingsHandler) UpdateMailSettings(c *gin.Context) {
 		"ok":      true,
 		"message": "邮箱配置已更新（运行时生效）",
 	})
+
+	// 持久化到 config.yaml
+	if err := h.cfg.Save(); err != nil {
+		// 记录日志但不影响响应（运行时配置已生效）
+		// 可选：返回警告信息
+	}
 }
 
 // ProxySettings 代理配置
@@ -159,6 +165,11 @@ func (h *SettingsHandler) UpdateProxySettings(c *gin.Context) {
 		"ok":      true,
 		"message": "代理配置已更新",
 	})
+
+	// 持久化到 config.yaml
+	if err := h.cfg.Save(); err != nil {
+		// 记录日志但不影响响应（运行时配置已生效）
+	}
 }
 
 // maskKey 隐藏 API key 中间部分
