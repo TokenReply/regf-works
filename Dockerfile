@@ -3,7 +3,7 @@
 # 运行: docker run -p 8080:8080 --name reg-server grok-fireworks-openrouter:latest
 
 # ========== 阶段 1: 编译 Go 二进制 ==========
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git
 
