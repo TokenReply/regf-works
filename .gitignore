@@ -33,5 +33,17 @@ dist/
 venv/
 .env
 
-# Results
+# Data
+data/
 results/
+*.db
+*.sqlite
+*.jsonl
+*.txt
+!requirements*.txt
+!README.md
+!LICENSE.txt
+!docs/*.txt
+
+# Logs
+*.log
