@@ -97,10 +97,14 @@ func NewMultiProvider(cfg map[string]string) *MultiProvider {
 	if prioritySet["gptmail"] {
 		gptURL := cfg["gptmail_base_url"]
 		gptKey := cfg["gptmail_api_key"]
+		// 如果没有配置用户密钥，则自动使用公共密钥
+		if gptKey == "" {
+			gptKey = GetGPTMailAPIKey("")
+		}
 		if gptKey != "" {
 			available["gptmail"] = NewGPTMailProvider(gptURL, gptKey)
 		} else {
-			log.Warn().Msg("gptmail 在优先级列表中但未配置 gptmail_api_key")
+			log.Warn().Msg("gptmail 在优先级列表中但无法获取密钥（用户未配置且公共密钥获取失败）")
 		}
 	}
 
