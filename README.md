@@ -1,208 +1,274 @@
 # regf-works
 
-Grok + Fireworks 多平台账号自动注册工具。
+🚀 **Grok / Fireworks / OpenRouter 自动注册平台**
 
-提供两种 Docker 镜像：
-- **lite** — 仅 Fireworks 注册，轻量快速（~150MB）
-- **full** — Fireworks + Grok 注册，内置 Turnstile 打码服务，开箱即用（~1.5GB）
+一体化自动化注册服务，支持 Grok、Fireworks AI 和 OpenRouter 三个平台的批量注册。
 
-## Docker 部署
+## ✨ 特性
 
-### full 版（推荐，Grok + Fireworks 全功能）
+- 🎯 **三平台支持**：Grok、Fireworks AI、OpenRouter
+- 🌐 **Web UI**：现代化管理界面，实时日志流
+- 🔐 **多邮箱 Provider**：AHEM、YYDS Mail、GPTMail、MoeMail
+- 🤖 **自动打码**：集成 Turnstile Solver（Camoufox 引擎）
+- 🐳 **Docker 一体化部署**：开箱即用
+- 📊 **黑名单管理**：自动过滤被拒域名
+- 🔄 **并发控制**：可配置并发数
+- 📝 **导出功能**：JSON/TXT/纯凭证格式
+
+---
+
+## 🚀 快速启动
+
+### Docker 部署（推荐）
 
 ```bash
-docker pull ghcr.io/jiujiu532/regf-works:latest
+# 构建镜像
+docker build -t regf-works .
 
+# 运行容器
 docker run -d \
   --name regf-works \
   -p 8080:8080 \
-  -v ./configs:/app/configs \
-  ghcr.io/jiujiu532/regf-works:latest
+  -e AUTH_PASSWORD=your_password \
+  regf-works
+
+# 访问
+open http://localhost:8080
 ```
 
-内置服务：
-- Go HTTP API（:8080）
-- Fireworks Python 注册引擎（:5000 内部）
-- Camoufox Turnstile solver（:8888 内部）
+### 本地开发
 
-部署后只需通过 API 配置邮箱服务地址即可使用。
+**前置要求**：
+- Go 1.23+
+- Python 3.11+
+- 已安装 Camoufox（`python -m camoufox fetch`）
 
-### lite 版（仅 Fireworks）
-
+**启动**：
 ```bash
-docker pull ghcr.io/jiujiu532/regf-works:lite
+# 1. 启动 Turnstile Solver（5072 端口）
+cd solver
+python api_solver.py --browser_type camoufox --thread 2 --port 5072
 
-docker run -d \
-  --name regf-works-lite \
-  -p 8080:8080 \
-  -v ./configs:/app/configs \
-  ghcr.io/jiujiu532/regf-works:lite
+# 2. 启动主服务（新终端）
+cd grok-fireworks-reg
+start.bat  # Windows
+# 或 ./start.sh（Linux/macOS，需自行创建）
 ```
 
-## 配置
+---
 
-首次启动会自动从模板生成配置文件。通过 API 动态修改配置（无需重启）：
+## 📖 架构设计
 
-### 配置邮箱服务
-
-```bash
-curl -X POST http://localhost:8080/api/settings/mail \
-  -H "Content-Type: application/json" \
-  -d '{
-    "provider_priority": "ahem",
-    "ahem": {
-      "base_url": "https://your-ahem-server.com",
-      "domains": ""
-    }
-  }'
+```
+┌─────────────────────────────────────────────────┐
+│              Web UI (Vue.js)                    │
+│           http://localhost:8080                 │
+└────────────────┬────────────────────────────────┘
+                 │ REST API (SSE)
+┌────────────────▼────────────────────────────────┐
+│           Go 主服务 (Gin)                        │
+│   • API 路由                                     │
+│   • 认证/授权                                    │
+│   • 任务调度                                     │
+│   • 黑名单管理                                   │
+└─┬───────────────────┬───────────────────────┬───┘
+  │                   │                       │
+  │ HTTP              │ HTTP                  │ HTTP
+  ▼                   ▼                       ▼
+┌─────────────┐ ┌──────────────┐ ┌────────────────┐
+│  Fireworks  │ │  OpenRouter  │ │ Turnstile      │
+│  Python     │ │  Python      │ │ Solver         │
+│  Service    │ │  Service     │ │ (Camoufox)     │
+│  :5000      │ │  :5001       │ │ :5072          │
+└─────────────┘ └──────────────┘ └────────────────┘
+      │                 │                 ▲
+      │                 │                 │
+      └─────────────────┴─────────────────┘
+              共享打码服务
 ```
 
-`domains` 留空会自动从 AHEM 服务获取所有可用域名，注册时随机选取。
+---
 
-### 配置代理
+## 🛠️ 配置说明
 
-```bash
-curl -X POST http://localhost:8080/api/settings/proxy \
-  -H "Content-Type: application/json" \
-  -d '{
-    "default": "http://user:pass@host:port",
-    "pool": ["http://proxy1:port", "http://proxy2:port"]
-  }'
-```
-
-### 配置文件
-
-也可以直接编辑 `configs/config.yaml`：
+### 核心配置文件：`configs/config.yaml`
 
 ```yaml
 server:
   port: 8080
 
-proxy:
-  default: ""
-  pool: []
+auth:
+  username: "admin"
+  password: "admin123"  # ⚠️ 生产环境请修改
 
 mail:
-  provider_priority: "ahem"
+  provider_priority: "ahem"  # ahem, yydsmail, gptmail, moemail
   ahem:
-    base_url: "https://your-ahem-server.com"
+    base_url: "https://mail.jiuuij.de5.net"
     domains: ""
-  yydsmail:
-    base_url: ""
-    api_key: ""
 
 turnstile:
-  solver_urls:
-    - "http://127.0.0.1:8888"    # full 镜像已内置
-  capsolver_key: ""               # 可选：付费打码备用
-  yescaptcha_key: ""              # 可选：付费打码备用
+  solver_urls: ["http://localhost:5072"]
 
 grok:
   site_key: "0x4AAAAAAAhr9JGVDZbrZOo0"
-  action_id: ""                   # 自动扫描获取
 
 fireworks:
-  service_url: "http://127.0.0.1:5000"   # full 镜像已内置
+  service_url: "http://127.0.0.1:5000"
   max_concurrent: 10
+
+openrouter:
+  service_url: "http://127.0.0.1:5001"
+  max_concurrent: 10
+  solver_type: "selfhost"
+  solver_api: "http://localhost:5072"
 ```
 
-## API 接口
+### 环境变量（Docker）
 
-### 注册
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `AUTH_USERNAME` | 管理员用户名 | admin |
+| `AUTH_PASSWORD` | 管理员密码 | admin123 |
+| `AHEM_BASE_URL` | AHEM 邮箱服务 | - |
+| `YYDS_BASE_URL` | YYDS 邮箱服务 | - |
+| `YYDS_API_KEY` | YYDS API Key | - |
+| `PROXY_DEFAULT` | 默认代理 | - |
 
+---
+
+## 📚 API 文档
+
+### 健康检查
 ```bash
-# Grok 注册
-curl -N http://localhost:8080/api/grok/register \
-  -H "Content-Type: application/json" \
-  -d '{"proxy": "http://user:pass@host:port"}'
-
-# Fireworks 注册
-curl -N http://localhost:8080/api/fireworks/register \
-  -H "Content-Type: application/json" \
-  -d '{}'
+GET /api/health
 ```
 
-响应为 SSE 流：
-
-```
-event: log
-data: [*] 任务开始
-
-event: log
-data: [+] 邮箱: abc123@example.com (via ahem)
-
-event: result
-data: {"ok":true,"email":"abc123@example.com","platform":"grok","data":{"auth_token":"...","password":"..."}}
-```
-
-### 完整接口列表
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/health` | 健康检查 |
-| POST | `/api/grok/register` | Grok 注册（SSE） |
-| POST | `/api/fireworks/register` | Fireworks 注册（SSE） |
-| GET | `/api/settings/mail` | 获取邮箱配置 |
-| POST | `/api/settings/mail` | 更新邮箱配置 |
-| GET | `/api/settings/proxy` | 获取代理配置 |
-| POST | `/api/settings/proxy` | 更新代理配置 |
-
-## CLI 模式
-
+### 注册接口（SSE 流式）
 ```bash
-# Grok 单个注册
-./reg-cli grok --config configs/config.yaml
+POST /api/grok/register
+POST /api/fireworks/register
+POST /api/openrouter/register
 
-# Fireworks 批量注册
-./reg-cli fireworks --config configs/config.yaml --count 5 --output results.jsonl
-
-# 指定代理
-./reg-cli grok --proxy http://user:pass@host:port
+请求体：
+{
+  "count": 5,
+  "concurrency": 2,
+  "proxy": "http://proxy:port",
+  "email_provider": "ahem"
+}
 ```
 
-## 本地开发
+### 黑名单管理
+```bash
+GET /api/blacklist/grok
+GET /api/blacklist/fireworks
+GET /api/blacklist/openrouter
 
+DELETE /api/blacklist/grok
+DELETE /api/blacklist/fireworks
+DELETE /api/blacklist/openrouter
+```
+
+---
+
+## 🐳 Docker 详细部署
+
+详见 [docs/DOCKER.md](docs/DOCKER.md)
+
+**资源需求**：
+- CPU：2 核心
+- 内存：2GB
+- 磁盘：5GB
+- 镜像大小：约 2.5GB
+
+---
+
+## 🔧 开发指南
+
+### 项目结构
+```
+.
+├── cmd/server/          # Go 主服务入口
+├── internal/            # Go 核心逻辑
+│   ├── grok/           # Grok 注册引擎
+│   ├── fireworks/      # Fireworks 注册引擎
+│   ├── openrouter/     # OpenRouter 注册引擎
+│   ├── handler/        # HTTP 处理器
+│   └── config/         # 配置管理
+├── scripts/            # Python 注册服务
+│   ├── fireworks_reg.py
+│   └── openrouter_reg.py
+├── solver/             # Turnstile 打码服务
+│   ├── api_solver.py
+│   └── browser_configs.py
+├── web/                # 前端静态资源
+│   └── index.html
+├── Dockerfile          # 一体化镜像
+└── configs/
+    ├── config.example.yaml
+    └── config.full.yaml
+```
+
+### 构建
 ```bash
 # Go 服务
-make dev
+go build -o bin/reg-server cmd/server/main.go
 
-# Fireworks Python 服务（另一个终端）
-make fireworks-service
-
-# Turnstile solver（另一个终端，需要 camoufox）
-make solver-service
+# Docker 镜像
+docker build -t regf-works .
 ```
 
-## 支持平台
+---
 
-| 平台 | 方式 | 产出 | 镜像 |
-|------|------|------|------|
-| Grok | gRPC-web + Server Actions + Turnstile | SSO Token, 密码, 支付链接 | full |
-| Fireworks | Server Actions + AWS Cognito | API Key, 账号凭据 | lite / full |
+## 📊 技术栈
 
-## 邮箱 Provider
+**后端**：
+- Go 1.23 + Gin
+- Python 3.11 + Quart
+- Camoufox (浏览器引擎)
+- Patchright (备用浏览器)
 
-| Provider | 说明 | 需要 Key | 推荐 |
-|----------|------|---------|------|
-| ahem | 自建 AHEM 服务 | 否 | 推荐 |
-| yydsmail | YYDS Mail API | 是 | |
-| duckmail | DuckMail API | 是 | |
-| mailtm | Mail.tm | 否 | |
-| tempmaillol | TempMail.lol | 否 | |
+**前端**：
+- 原生 JavaScript + CSS
+- SSE (Server-Sent Events)
 
-AHEM 基于 [Ad-Hoc-Email-Server](https://github.com/o4oren/Ad-Hoc-Email-Server)，无需认证，任意前缀即可收信，域名自动获取并随机选取。
+**部署**：
+- Docker + Multi-stage Build
+- Debian Slim 基础镜像
 
-## 镜像对比
+---
 
-| | lite | full |
-|--|------|------|
-| Fireworks 注册 | ✓ | ✓ |
-| Grok 注册 | ✗ | ✓ |
-| Turnstile solver | ✗（需外部） | ✓（内置） |
-| 镜像大小 | ~150MB | ~1.5GB |
-| 平台 | amd64 + arm64 | 仅 amd64 |
-| 内存需求 | ~100MB | ~800MB |
+## ⚠️ 注意事项
 
-## License
+1. **生产部署必须修改默认密码**
+2. **配置邮箱服务**（AHEM/YYDS/GPTMail/MoeMail 至少一个）
+3. **Solver 需要 2 核 CPU + 2GB 内存**（浏览器渲染）
+4. **合理设置并发数**（避免 IP 封禁）
+5. **不要滥用注册服务**（遵守各平台 ToS）
 
-MIT
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+## 🙏 致谢
+
+- [Camoufox](https://github.com/daijro/camoufox) - 反检测浏览器引擎
+- [Patchright](https://github.com/Vinyzu/patchright) - Playwright 补丁版本
+- [Gin](https://github.com/gin-gonic/gin) - Go Web 框架
+- [Quart](https://github.com/pallets/quart) - Python 异步 Web 框架
+
+---
+
+## 📮 联系方式
+
+- Issues: [GitHub Issues](https://github.com/jiujiu532/regf-works/issues)
+- 文档: [docs/](docs/)
+
+---
+
+**⚡ 开箱即用，一键部署，享受自动化注册的便利！**

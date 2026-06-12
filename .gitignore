@@ -47,3 +47,4 @@ results/
 
 # Logs
 *.log
+solver/.env
