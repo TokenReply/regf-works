@@ -187,10 +187,10 @@
 <div id="loginPage" class="login-page">
   <div class="login-card">
     <h1>regf-works</h1>
-    <div class="sub">Automation Console</div>
-    <div class="field"><label>Username</label><input class="inp" id="username" placeholder="admin"></div>
-    <div class="field"><label>Password</label><input class="inp" type="password" id="password" placeholder="••••••••"></div>
-    <button class="btn btn-fill" style="width:100%;margin-top:8px" onclick="doLogin()">Sign in</button>
+    <div class="sub" data-i="loginSub">Automation Console</div>
+    <div class="field"><label data-i="username">Username</label><input class="inp" id="username" placeholder="admin"></div>
+    <div class="field"><label data-i="password">Password</label><input class="inp" type="password" id="password" placeholder="••••••••"></div>
+    <button class="btn btn-fill" style="width:100%;margin-top:8px" onclick="doLogin()" data-i="signin">Sign in</button>
   </div>
 </div>
 
@@ -199,9 +199,9 @@
   <div class="topbar">
     <div class="topbar-logo">regf-works</div>
     <div class="topbar-nav">
-      <div class="tab on" data-v="register" onclick="nav('register')">Register</div>
-      <div class="tab" data-v="results" onclick="nav('results')">Results</div>
-      <div class="tab" data-v="settings" onclick="nav('settings')">Settings</div>
+      <div class="tab on" data-v="register" onclick="nav('register')" data-i="register">Register</div>
+      <div class="tab" data-v="results" onclick="nav('results')" data-i="results">Results</div>
+      <div class="tab" data-v="settings" onclick="nav('settings')" data-i="settings">Settings</div>
     </div>
     <div class="topbar-right">
       <button class="btn btn-ghost btn-sm" onclick="toggleLang()" id="langBtn" style="font-size:13px">中文</button>
@@ -221,31 +221,31 @@
             <div class="pill" data-t="fireworks" onclick="tab('fireworks')">Fireworks</div>
           </div>
           <div id="t-grok">
-            <div class="card-title">Grok Registration</div>
+            <div class="card-title" data-i="grokReg">Grok Registration</div>
             <div class="grid-2">
-              <div class="field"><label>Proxy (optional)</label><input class="inp" id="grokProxy" placeholder="http://user:pass@host:port"></div>
-              <div class="field"><label>Concurrency</label><input class="inp" type="number" id="grokCount" value="1" min="1"></div>
+              <div class="field"><label data-i="proxy">Proxy (optional)</label><input class="inp" id="grokProxy" placeholder="http://user:pass@host:port"></div>
+              <div class="field"><label data-i="concurrency">Concurrency</label><input class="inp" type="number" id="grokCount" value="1" min="1"></div>
             </div>
-            <div class="field"><label>Email provider</label>
-              <select class="inp" id="grokMail"><option value="">Auto</option><option value="ahem">AHEM</option><option value="yydsmail">YYDS</option></select>
+            <div class="field"><label data-i="emailProvider">Email provider</label>
+              <select class="inp" id="grokMail"><option value="" data-i="auto">Auto</option><option value="ahem">AHEM</option><option value="yydsmail">YYDS</option></select>
             </div>
             <div class="actions">
-              <button class="btn btn-fill" id="btn-grok-go" onclick="startReg('grok')">Start registration</button>
-              <button class="btn btn-danger hide" id="btn-grok-stop" onclick="stopReg('grok')">Stop</button>
+              <button class="btn btn-fill" id="btn-grok-go" onclick="startReg('grok')" data-i="startReg">Start registration</button>
+              <button class="btn btn-danger hide" id="btn-grok-stop" onclick="stopReg('grok')" data-i="stop">Stop</button>
             </div>
           </div>
           <div id="t-fireworks" class="hide">
-            <div class="card-title">Fireworks Registration</div>
+            <div class="card-title" data-i="fireworksReg">Fireworks Registration</div>
             <div class="grid-2">
-              <div class="field"><label>Proxy (optional)</label><input class="inp" id="fireworksProxy" placeholder="http://user:pass@host:port"></div>
-              <div class="field"><label>Concurrency</label><input class="inp" type="number" id="fireworksCount" value="1" min="1"></div>
+              <div class="field"><label data-i="proxy">Proxy (optional)</label><input class="inp" id="fireworksProxy" placeholder="http://user:pass@host:port"></div>
+              <div class="field"><label data-i="concurrency">Concurrency</label><input class="inp" type="number" id="fireworksCount" value="1" min="1"></div>
             </div>
-            <div class="field"><label>Email provider</label>
-              <select class="inp" id="fireworksMail"><option value="">Auto</option><option value="ahem">AHEM</option><option value="yydsmail">YYDS</option></select>
+            <div class="field"><label data-i="emailProvider">Email provider</label>
+              <select class="inp" id="fireworksMail"><option value="" data-i="auto">Auto</option><option value="ahem">AHEM</option><option value="yydsmail">YYDS</option></select>
             </div>
             <div class="actions">
-              <button class="btn btn-fill" id="btn-fireworks-go" onclick="startReg('fireworks')">Start registration</button>
-              <button class="btn btn-danger hide" id="btn-fireworks-stop" onclick="stopReg('fireworks')">Stop</button>
+              <button class="btn btn-fill" id="btn-fireworks-go" onclick="startReg('fireworks')" data-i="startReg">Start registration</button>
+              <button class="btn btn-danger hide" id="btn-fireworks-stop" onclick="stopReg('fireworks')" data-i="stop">Stop</button>
             </div>
           </div>
         </div>
@@ -254,24 +254,24 @@
       <!-- ═ Results ═ -->
       <div id="v-results" class="hide">
         <div class="stats">
-          <div class="stat-box"><div class="stat-label">Total</div><div class="stat-val" id="s-total">0</div></div>
-          <div class="stat-box"><div class="stat-label">Success</div><div class="stat-val ok" id="s-ok">0</div></div>
-          <div class="stat-box"><div class="stat-label">Failed</div><div class="stat-val err" id="s-fail">0</div></div>
+          <div class="stat-box"><div class="stat-label" data-i="total">Total</div><div class="stat-val" id="s-total">0</div></div>
+          <div class="stat-box"><div class="stat-label" data-i="success">Success</div><div class="stat-val ok" id="s-ok">0</div></div>
+          <div class="stat-box"><div class="stat-label" data-i="failed">Failed</div><div class="stat-val err" id="s-fail">0</div></div>
         </div>
         <div class="card" style="padding:24px">
           <div class="toolbar">
             <div class="toolbar-left">
-              <select class="inp" id="fPlat" onchange="render()" style="width:140px"><option value="all">All</option><option value="grok">Grok</option><option value="fireworks">Fireworks</option></select>
+              <select class="inp" id="fPlat" onchange="render()" style="width:140px"><option value="all" data-i="all">All</option><option value="grok">Grok</option><option value="fireworks">Fireworks</option></select>
               <input class="inp" id="fSearch" placeholder="Search..." oninput="render()" style="width:180px">
             </div>
             <div style="display:flex;gap:8px">
               <button class="btn btn-outline btn-sm" onclick="expJSON()">JSON</button>
               <button class="btn btn-outline btn-sm" onclick="expTXT()">TXT</button>
-              <button class="btn btn-danger btn-sm" onclick="clearAll()">Clear</button>
+              <button class="btn btn-danger btn-sm" onclick="clearAll()" data-i="clear">Clear</button>
             </div>
           </div>
           <div class="tbl-wrap">
-            <table><thead><tr><th>Platform</th><th>Email</th><th>Password</th><th>Credential</th><th>Status</th><th style="text-align:right">Action</th></tr></thead>
+            <table><thead><tr><th data-i="platform">Platform</th><th data-i="email">Email</th><th data-i="password2">Password</th><th data-i="credential">Credential</th><th data-i="status">Status</th><th style="text-align:right" data-i="action">Action</th></tr></thead>
             <tbody id="tbody"></tbody></table>
           </div>
         </div>
@@ -280,32 +280,32 @@
       <!-- ═ Settings ═ -->
       <div id="v-settings" class="hide">
         <div class="card">
-          <div class="card-title">Mail</div>
-          <div class="field"><label>Provider priority</label><input class="inp" id="sPri" placeholder="ahem,yydsmail"></div>
+          <div class="card-title" data-i="mail">Mail</div>
+          <div class="field"><label data-i="providerPri">Provider priority</label><input class="inp" id="sPri" placeholder="ahem,yydsmail"></div>
           <div class="grid-2">
-            <div class="field"><label>AHEM URL</label><input class="inp" id="sAU" placeholder="https://mail.jiuuij.de5.net"></div>
-            <div class="field"><label>AHEM Domains</label><input class="inp" id="sAD" placeholder="domain1,domain2"></div>
+            <div class="field"><label data-i="ahemUrl">AHEM URL</label><input class="inp" id="sAU" placeholder="https://mail.jiuuij.de5.net"></div>
+            <div class="field"><label data-i="ahemDomains">AHEM Domains</label><input class="inp" id="sAD" placeholder="domain1,domain2"></div>
           </div>
           <div class="grid-2">
-            <div class="field"><label>YYDS URL</label><input class="inp" id="sYU" placeholder="https://maliapi.215.im"></div>
-            <div class="field"><label>YYDS API Key</label><input class="inp" type="password" id="sYK" placeholder="AC-xxxxxx"></div>
+            <div class="field"><label data-i="yydsUrl">YYDS URL</label><input class="inp" id="sYU" placeholder="https://maliapi.215.im"></div>
+            <div class="field"><label data-i="yydsKey">YYDS API Key</label><input class="inp" type="password" id="sYK" placeholder="AC-xxxxxx"></div>
           </div>
-          <button class="btn btn-fill" onclick="saveMail()">Save mail config</button>
+          <button class="btn btn-fill" onclick="saveMail()" data-i="saveMailCfg">Save mail config</button>
         </div>
         <div class="card">
-          <div class="card-title">Proxy</div>
-          <div class="field"><label>Default proxy</label><input class="inp" id="sPD" placeholder="http://user:pass@host:port"></div>
-          <div class="field"><label>Pool (one per line)</label><textarea class="inp" id="sPP" rows="3"></textarea></div>
-          <button class="btn btn-fill" onclick="saveProxy()">Save proxy config</button>
+          <div class="card-title" data-i="proxy2">Proxy</div>
+          <div class="field"><label data-i="defaultProxy">Default proxy</label><input class="inp" id="sPD" placeholder="http://user:pass@host:port"></div>
+          <div class="field"><label data-i="poolLine">Pool (one per line)</label><textarea class="inp" id="sPP" rows="3"></textarea></div>
+          <button class="btn btn-fill" onclick="saveProxy()" data-i="saveProxyCfg">Save proxy config</button>
         </div>
         <div class="card">
-          <div class="card-title">Security</div>
-          <div class="field"><label>New username</label><input class="inp" id="sNU"></div>
+          <div class="card-title" data-i="security">Security</div>
+          <div class="field"><label data-i="newUsername">New username</label><input class="inp" id="sNU"></div>
           <div class="grid-2">
-            <div class="field"><label>New password</label><input class="inp" type="password" id="sNP"></div>
-            <div class="field"><label>Confirm</label><input class="inp" type="password" id="sNP2"></div>
+            <div class="field"><label data-i="newPassword">New password</label><input class="inp" type="password" id="sNP"></div>
+            <div class="field"><label data-i="confirm">Confirm</label><input class="inp" type="password" id="sNP2"></div>
           </div>
-          <button class="btn btn-danger" onclick="saveAuth()">Update credentials</button>
+          <button class="btn btn-danger" onclick="saveAuth()" data-i="updateCred">Update credentials</button>
         </div>
       </div>
 
@@ -319,8 +319,8 @@
 </div>
 <div class="log-drawer" id="logDrawer">
   <div class="log-drawer-head">
-    <span>Terminal</span>
-    <div><button class="btn btn-ghost btn-sm" onclick="document.getElementById('logBody').innerHTML=''">Clear</button><button class="btn btn-ghost btn-sm" onclick="toggleLog()">Close</button></div>
+    <span data-i="terminal">Terminal</span>
+    <div><button class="btn btn-ghost btn-sm" onclick="document.getElementById('logBody').innerHTML=''" data-i="clear">Clear</button><button class="btn btn-ghost btn-sm" onclick="toggleLog()" data-i="close">Close</button></div>
   </div>
   <div class="log-drawer-body" id="logBody"></div>
 </div>
@@ -362,7 +362,7 @@ const i18n={
 };
 let lang=localStorage.getItem('lang')||'en',tk=localStorage.getItem('tk')||'',R=JSON.parse(localStorage.getItem('R')||'[]'),AB={grok:null,fireworks:null};
 function t(k){return i18n[lang][k]||k}
-function toggleLang(){lang=lang==='en'?'zh':'en';localStorage.setItem('lang',lang);location.reload()}
+function toggleLang(){lang=lang==='en'?'zh':'en';localStorage.setItem('lang',lang);$('langBtn').textContent=lang==='en'?'中文':'EN';applyI18n();$('fSearch').placeholder=t('search')}
 function applyI18n(){
   document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));
   $('langBtn').textContent=lang==='en'?'中文':'EN';
