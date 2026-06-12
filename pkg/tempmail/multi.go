@@ -93,6 +93,17 @@ func NewMultiProvider(cfg map[string]string) *MultiProvider {
 		}
 	}
 
+	// GPTMail（mail.chatgpt.org.uk，API Key 授权，自动生成随机邮箱）
+	if prioritySet["gptmail"] {
+		gptURL := cfg["gptmail_base_url"]
+		gptKey := cfg["gptmail_api_key"]
+		if gptKey != "" {
+			available["gptmail"] = NewGPTMailProvider(gptURL, gptKey)
+		} else {
+			log.Warn().Msg("gptmail 在优先级列表中但未配置 gptmail_api_key")
+		}
+	}
+
 	// 按优先级排列（严格模式：仅使用优先级列表中的 provider）
 	var providers []EmailProvider
 	for _, name := range strings.Split(priority, ",") {

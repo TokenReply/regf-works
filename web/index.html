@@ -226,7 +226,7 @@
             <div class="grid-2">
               <div class="field"><label data-i="proxy">Proxy (optional)</label><input class="inp" id="grokProxy" placeholder="http://user:pass@host:port"></div>
               <div class="field"><label data-i="emailProvider">Email provider</label>
-                <select class="inp" id="grokMail"><option value="" data-i="auto">Auto</option><option value="ahem">AHEM</option><option value="yydsmail">YYDS</option></select>
+                <select class="inp" id="grokMail"><option value="" data-i="auto">Auto</option><option value="ahem">AHEM</option><option value="yydsmail">YYDS</option><option value="gptmail">GPTMail</option></select>
               </div>
             </div>
             <div class="grid-2">
@@ -243,7 +243,7 @@
             <div class="grid-2">
               <div class="field"><label data-i="proxy">Proxy (optional)</label><input class="inp" id="fireworksProxy" placeholder="http://user:pass@host:port"></div>
               <div class="field"><label data-i="emailProvider">Email provider</label>
-                <select class="inp" id="fireworksMail"><option value="" data-i="auto">Auto</option><option value="ahem">AHEM</option><option value="yydsmail">YYDS</option></select>
+                <select class="inp" id="fireworksMail"><option value="" data-i="auto">Auto</option><option value="ahem">AHEM</option><option value="yydsmail">YYDS</option><option value="gptmail">GPTMail</option></select>
               </div>
             </div>
             <div class="grid-2">
@@ -299,18 +299,22 @@
             <div class="field"><label data-i="yydsUrl">YYDS URL</label><input class="inp" id="sYU" placeholder="https://maliapi.215.im"></div>
             <div class="field"><label data-i="yydsKey">YYDS API Key</label><input class="inp" type="password" id="sYK" placeholder="AC-xxxxxx"></div>
           </div>
+          <div class="grid-2">
+            <div class="field"><label data-i="gptmailUrl">GPTMail URL</label><input class="inp" id="sGU" placeholder="https://mail.chatgpt.org.uk"></div>
+            <div class="field"><label data-i="gptmailKey">GPTMail API Key</label><input class="inp" type="password" id="sGK" placeholder="your-api-key"></div>
+          </div>
           <button class="btn btn-fill" onclick="saveMail()" data-i="saveMailCfg">Save mail config</button>
         </div>
 
         <div class="card">
           <div class="card-title" data-i="grokBlacklist">Grok 域名黑名单</div>
-          <div id="grokBlacklistContent" style="min-height:60px;color:var(--text-2);font-size:14px"></div>
+          <div id="grokBlacklistContent" style="max-height:200px;overflow-y:auto;color:var(--text-2);font-size:14px"></div>
           <button class="btn btn-outline btn-sm" onclick="clearBlacklist('grok')" data-i="clearBlacklist" style="margin-top:12px">清空黑名单</button>
         </div>
 
         <div class="card">
           <div class="card-title" data-i="fireworksBlacklist">Fireworks 域名黑名单</div>
-          <div id="fireworksBlacklistContent" style="min-height:60px;color:var(--text-2);font-size:14px"></div>
+          <div id="fireworksBlacklistContent" style="max-height:200px;overflow-y:auto;color:var(--text-2);font-size:14px"></div>
           <button class="btn btn-outline btn-sm" onclick="clearBlacklist('fireworks')" data-i="clearBlacklist" style="margin-top:12px">清空黑名单</button>
         </div>
       </div>
@@ -362,7 +366,7 @@ const i18n={
     clear:'Clear',platform:'Platform',email:'Email',password2:'Password',credential:'Credential',
     status:'Status',action:'Action',copy:'Copy',copied:'Copied',clearConfirm:'Clear all results?',noData:'No data',
     providerPri:'Provider priority',ahemUrl:'AHEM URL',ahemDomains:'AHEM Domains',
-    yydsUrl:'YYDS URL',yydsKey:'YYDS API Key',saveMailCfg:'Save mail config',mailSaved:'Mail config saved',
+    yydsUrl:'YYDS URL',yydsKey:'YYDS API Key',gptmailUrl:'GPTMail URL',gptmailKey:'GPTMail API Key',saveMailCfg:'Save mail config',mailSaved:'Mail config saved',
     grokBlacklist:'Grok Domain Blacklist',fireworksBlacklist:'Fireworks Domain Blacklist',
     clearBlacklist:'Clear Blacklist',noBanned:'No banned domains',bannedAgo:'banned',
     proxy2:'Proxy',defaultProxy:'Default proxy',poolLine:'Pool (one per line)',saveProxyCfg:'Save proxy config',proxySaved:'Proxy config saved',
@@ -381,7 +385,7 @@ const i18n={
     clear:'清空',platform:'平台',email:'邮箱',password2:'密码',credential:'凭据',
     status:'状态',action:'操作',copy:'复制',copied:'已复制',clearConfirm:'确定清空所有结果？',noData:'无数据',
     providerPri:'提供商优先级',ahemUrl:'AHEM URL',ahemDomains:'AHEM 域名',
-    yydsUrl:'YYDS URL',yydsKey:'YYDS API Key',saveMailCfg:'保存邮箱配置',mailSaved:'邮箱配置已保存',
+    yydsUrl:'YYDS URL',yydsKey:'YYDS API Key',gptmailUrl:'GPTMail URL',gptmailKey:'GPTMail API Key',saveMailCfg:'保存邮箱配置',mailSaved:'邮箱配置已保存',
     grokBlacklist:'Grok 域名黑名单',fireworksBlacklist:'Fireworks 域名黑名单',
     clearBlacklist:'清空黑名单',noBanned:'暂无黑名单域名',bannedAgo:'前拉黑',
     proxy2:'代理',defaultProxy:'默认代理',poolLine:'代理池 (每行一个)',saveProxyCfg:'保存代理配置',proxySaved:'代理配置已保存',
@@ -463,10 +467,10 @@ function dl(c,t,n){const a=document.createElement('a');a.href=URL.createObjectUR
 /* Settings */
 async function loadCfg(){
   try{const[rm,rp]=await Promise.all([api('GET','/api/settings/mail'),api('GET','/api/settings/proxy')]);
-    if(rm.ok){const m=await rm.json();$('sPri').value=m.provider_priority||'';$('sAU').value=m.ahem?.base_url||'';$('sAD').value=m.ahem?.domains||'';$('sYU').value=m.yydsmail?.base_url||'';$('sYK').value=m.yydsmail?.api_key||''}
+    if(rm.ok){const m=await rm.json();$('sPri').value=m.provider_priority||'';$('sAU').value=m.ahem?.base_url||'';$('sAD').value=m.ahem?.domains||'';$('sYU').value=m.yydsmail?.base_url||'';$('sYK').value=m.yydsmail?.api_key||'';$('sGU').value=m.gptmail?.base_url||'';$('sGK').value=m.gptmail?.api_key||''}
     if(rp.ok){const p=await rp.json();$('sPD').value=p.default||'';$('sPP').value=(p.pool||[]).join('\n')}}catch{}
 }
-async function saveMail(){await api('POST','/api/settings/mail',{provider_priority:$('sPri').value,ahem:{base_url:$('sAU').value,domains:$('sAD').value},yydsmail:{base_url:$('sYU').value,api_key:$('sYK').value}});toast(t('mailSaved'))}
+async function saveMail(){await api('POST','/api/settings/mail',{provider_priority:$('sPri').value,ahem:{base_url:$('sAU').value,domains:$('sAD').value},yydsmail:{base_url:$('sYU').value,api_key:$('sYK').value},gptmail:{base_url:$('sGU').value,api_key:$('sGK').value}});toast(t('mailSaved'))}
 async function saveProxy(){await api('POST','/api/settings/proxy',{default:$('sPD').value,pool:$('sPP').value.split('\n').filter(Boolean)});toast(t('proxySaved'))}
 async function saveAuth(){const np=$('sNP').value;if(np&&np!==$('sNP2').value)return toast(t('pwdMismatch'));const r=await api('POST','/api/auth/credentials',{new_username:$('sNU').value,new_password:np});if((await r.json()).logout)doLogout()}
 

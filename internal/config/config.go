@@ -40,6 +40,7 @@ type MailConfig struct {
 	ProviderPriority string         `mapstructure:"provider_priority"`
 	YYDS             YYDSMailConfig `mapstructure:"yydsmail"`
 	Ahem             AhemConfig     `mapstructure:"ahem"`
+	GPTMail          GPTMailConfig  `mapstructure:"gptmail"`
 }
 
 type YYDSMailConfig struct {
@@ -50,6 +51,11 @@ type YYDSMailConfig struct {
 type AhemConfig struct {
 	BaseURL string `mapstructure:"base_url"`
 	Domains string `mapstructure:"domains"`
+}
+
+type GPTMailConfig struct {
+	BaseURL string `mapstructure:"base_url"`
+	APIKey  string `mapstructure:"api_key"`
 }
 
 type TurnstileConfig struct {
@@ -120,6 +126,8 @@ func (c *Config) ToGrokConfig() common.Config {
 		"yydsmail_api_key":      c.Mail.YYDS.APIKey,
 		"ahem_base_url":         c.Mail.Ahem.BaseURL,
 		"ahem_domains":          c.Mail.Ahem.Domains,
+		"gptmail_base_url":      c.Mail.GPTMail.BaseURL,
+		"gptmail_api_key":       c.Mail.GPTMail.APIKey,
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }
@@ -132,6 +140,8 @@ func (c *Config) ToFireworksConfig() common.Config {
 		"yydsmail_api_key":       c.Mail.YYDS.APIKey,
 		"ahem_base_url":          c.Mail.Ahem.BaseURL,
 		"ahem_domains":           c.Mail.Ahem.Domains,
+		"gptmail_base_url":       c.Mail.GPTMail.BaseURL,
+		"gptmail_api_key":        c.Mail.GPTMail.APIKey,
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }
