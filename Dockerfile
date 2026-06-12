@@ -1,7 +1,9 @@
-# 默认 Dockerfile — 构建 full 版本（Fireworks + Grok + Solver）
-# 如需仅构建 Fireworks 轻量版，使用: docker build -f Dockerfile.lite .
+# 一体化 Dockerfile — Grok + Fireworks + OpenRouter + Turnstile Solver
+# 构建: docker build -t grok-fireworks-openrouter:latest .
+# 运行: docker run -p 8080:8080 --name reg-server grok-fireworks-openrouter:latest
 
-FROM golang:1.25-alpine AS builder
+# ========== 阶段 1: 编译 Go 二进制 ==========
+FROM golang:1.23-alpine AS builder
 
 RUN apk add --no-cache git
 
@@ -11,11 +13,11 @@ RUN go mod download
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/reg-server cmd/server/main.go
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/reg-cli cmd/cli/main.go
 
-# 最终镜像
+# ========== 阶段 2: 最终镜像 ==========
 FROM python:3.11-slim
 
+# 安装系统依赖（Camoufox 浏览器需要）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libgtk-3-0 \
@@ -34,27 +36,47 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
     libxkbcommon0 \
+    libcups2 \
+    libxshmfence1 \
     fonts-liberation \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# 复制 Go 二进制
 COPY --from=builder /bin/reg-server /app/reg-server
-COPY --from=builder /bin/reg-cli /app/reg-cli
 
-COPY scripts/requirements-full.txt /tmp/requirements.txt
-# 安装 Camoufox 浏览器二进制（重试逻辑避免偶发的 GitHub API 限流）
-RUN for i in 1 2 3; do python -m camoufox fetch && break || sleep 10; done
-
-COPY scripts/fireworks_reg.py /app/scripts/fireworks_reg.py
-COPY scripts/turnstile_solver.py /app/scripts/turnstile_solver.py
+# 复制配置文件
 COPY configs/config.example.yaml /app/configs/config.example.yaml
 COPY configs/config.full.yaml /app/configs/config.full.yaml
 
-EXPOSE 8080 5000 8888
+# 复制 Python 脚本
+COPY scripts/fireworks_reg.py /app/scripts/fireworks_reg.py
+COPY scripts/openrouter_reg.py /app/scripts/openrouter_reg.py
+COPY solver/ /app/solver/
 
+# 复制前端资源
+COPY web/ /app/web/
+
+# 安装 Python 依赖
+COPY scripts/requirements-full.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# 安装 Camoufox 浏览器（重试 3 次避免 GitHub API 限流）
+RUN for i in 1 2 3; do python -m camoufox fetch && break || sleep 10; done
+
+# 安装 Patchright 浏览器（备用）
+RUN python -m patchright install chromium || true
+
+# 暴露端口
+EXPOSE 8080
+
+# 复制启动脚本
 COPY scripts/entrypoint-full.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1
 
 ENTRYPOINT ["/app/entrypoint.sh"]

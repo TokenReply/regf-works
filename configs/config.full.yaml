@@ -1,4 +1,4 @@
-# full 镜像默认配置 — Turnstile solver 指向容器内服务
+# full 镜像默认配置 — 所有服务指向容器内部
 server:
   port: 8080
 
@@ -19,10 +19,18 @@ mail:
   ahem:
     base_url: ""
     domains: ""
+  gptmail:
+    base_url: ""
+    api_key: ""
+  moemail:
+    base_url: ""
+    api_key: ""
+    domains: ""
+    expiry_time: 3600000
 
 turnstile:
   solver_urls:
-    - "http://127.0.0.1:8888"
+    - "http://127.0.0.1:5072"
   solver_proxy: ""
   capsolver_key: ""
   yescaptcha_key: ""
@@ -36,3 +44,10 @@ grok:
 fireworks:
   service_url: "http://127.0.0.1:5000"
   max_concurrent: 10
+
+openrouter:
+  service_url: "http://127.0.0.1:5001"
+  max_concurrent: 10
+  solver_type: "selfhost"
+  solver_api: "http://127.0.0.1:5072"
+  yescaptcha_key: ""
