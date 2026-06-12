@@ -97,7 +97,7 @@
     .topbar-right span{font-size:14px;color:var(--text-2)}
 
     .page-scroll{flex:1;overflow-y:auto;padding:32px 0}
-    .page-inner{max-width:720px;margin:0 auto;padding:0 24px}
+    .page-inner{max-width:1100px;margin:0 auto;padding:0 24px}
 
     /* ─── Cards ─── */
     .card{
@@ -265,6 +265,8 @@
               <input class="inp" id="fSearch" placeholder="Search..." oninput="render()" style="width:180px">
             </div>
             <div style="display:flex;gap:8px">
+              <button class="btn btn-outline btn-sm" onclick="expAccount()" data-i="expAccount">Account</button>
+              <button class="btn btn-outline btn-sm" onclick="expCred()" data-i="expCred">Credential</button>
               <button class="btn btn-outline btn-sm" onclick="expJSON()">JSON</button>
               <button class="btn btn-outline btn-sm" onclick="expTXT()">TXT</button>
               <button class="btn btn-danger btn-sm" onclick="clearAll()" data-i="clear">Clear</button>
@@ -341,7 +343,8 @@ const i18n={
     proxy2:'Proxy',defaultProxy:'Default proxy',poolLine:'Pool (one per line)',saveProxyCfg:'Save proxy config',proxySaved:'Proxy config saved',
     security:'Security',newUsername:'New username',newPassword:'New password',confirm:'Confirm',
     updateCred:'Update credentials',pwdMismatch:'Password mismatch',
-    terminal:'Terminal',close:'Close',enterCred:'Enter credentials',done:'Done'
+    terminal:'Terminal',close:'Close',enterCred:'Enter credentials',done:'Done',
+    expAccount:'Account',expCred:'Credential'
   },
   zh:{
     loginSub:'自动化控制台',username:'用户名',password:'密码',signin:'登录',
@@ -357,7 +360,8 @@ const i18n={
     proxy2:'代理',defaultProxy:'默认代理',poolLine:'代理池 (每行一个)',saveProxyCfg:'保存代理配置',proxySaved:'代理配置已保存',
     security:'安全',newUsername:'新用户名',newPassword:'新密码',confirm:'确认',
     updateCred:'更新凭据',pwdMismatch:'密码不匹配',
-    terminal:'终端',close:'关闭',enterCred:'请输入凭据',done:'完成'
+    terminal:'终端',close:'关闭',enterCred:'请输入凭据',done:'完成',
+    expAccount:'账号密码',expCred:'凭据'
   }
 };
 let lang=localStorage.getItem('lang')||'en',tk=localStorage.getItem('tk')||'',R=JSON.parse(localStorage.getItem('R')||'[]'),AB={grok:null,fireworks:null};
@@ -423,6 +427,8 @@ function render(){
 }
 function cpRow(i){const r=R[i];const c=r.platform==='fireworks'?(r.data.apikey||''):(r.data.auth_token||'');navigator.clipboard.writeText(`${r.email}----${r.data.password||''}----${c}`);toast(t('copied'))}
 function clearAll(){if(!confirm(t('clearConfirm')))return;R=[];localStorage.setItem('R','[]');stats();render()}
+function expAccount(){const t=R.filter(r=>r.status==='success').map(r=>`${r.email}----${r.data.password||''}`).join('\n');if(!t)return toast(i18n[lang].noData);dl(t,'text/plain','accounts.txt')}
+function expCred(){const t=R.filter(r=>r.status==='success').map(r=>{const c=r.platform==='fireworks'?(r.data.apikey||''):(r.data.auth_token||'');return c}).join('\n');if(!t)return toast(i18n[lang].noData);dl(t,'text/plain','credentials.txt')}
 function expJSON(){dl(JSON.stringify(R,null,2),'application/json','results.json')}
 function expTXT(){const t=R.filter(r=>r.status==='success').map(r=>{const c=r.platform==='fireworks'?(r.data.apikey||''):(r.data.auth_token||'');return`${r.email}----${r.data.password||''}----${c}`}).join('\n');if(!t)return toast(i18n[lang].noData);dl(t,'text/plain','keys.txt')}
 function dl(c,t,n){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click()}
