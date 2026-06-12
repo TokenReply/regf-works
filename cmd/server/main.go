@@ -100,6 +100,8 @@ func main() {
 			// 结果管理
 			protected.GET("/results", resultsHandler.GetResults)
 			protected.DELETE("/results", resultsHandler.ClearResults)
+			protected.DELETE("/results/batch", resultsHandler.DeleteBatch)
+			protected.DELETE("/results/filter", resultsHandler.DeleteByFilter)
 
 			blacklist := protected.Group("/blacklist")
 			{

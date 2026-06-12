@@ -297,11 +297,20 @@
               <button class="btn btn-outline btn-sm" onclick="expCred()" data-i="expCred">Credential</button>
               <button class="btn btn-outline btn-sm" onclick="expJSON()">JSON</button>
               <button class="btn btn-outline btn-sm" onclick="expTXT()">TXT</button>
-              <button class="btn btn-danger btn-sm" onclick="clearAll()" data-i="clear">Clear</button>
+              <button class="btn btn-danger btn-sm" onclick="delSelected()" data-i="delSelected">Delete Selected</button>
+              <button class="btn btn-danger btn-sm" onclick="clearFiltered()" data-i="clearFiltered">Clear Filtered</button>
+              <button class="btn btn-danger btn-sm" onclick="clearAll()" data-i="clearAll">Clear All</button>
             </div>
           </div>
+          <div style="margin:12px 0;display:flex;align-items:center;gap:12px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="checkAll" onchange="toggleAll()">
+              <span data-i="selectAll">Select All</span>
+            </label>
+            <span id="selectedCount" style="color:#888;font-size:13px"></span>
+          </div>
           <div class="tbl-wrap">
-            <table><thead><tr><th data-i="platform">Platform</th><th data-i="email">Email</th><th data-i="password2">Password</th><th data-i="credential">Credential</th><th data-i="status">Status</th><th style="text-align:right" data-i="action">Action</th></tr></thead>
+            <table><thead><tr><th style="width:40px"></th><th data-i="platform">Platform</th><th data-i="email">Email</th><th data-i="password2">Password</th><th data-i="credential">Credential</th><th data-i="status">Status</th><th style="text-align:right" data-i="action">Action</th></tr></thead>
             <tbody id="tbody"></tbody></table>
           </div>
         </div>
@@ -410,7 +419,12 @@ const i18n={
     security:'Security',newUsername:'New username',newPassword:'New password',confirm:'Confirm',
     updateCred:'Update credentials',pwdMismatch:'Password mismatch',
     terminal:'Terminal',close:'Close',enterCred:'Enter credentials',done:'Done',
-    expAccount:'Account',expCred:'Credential'
+    expAccount:'Account',expCred:'Credential',
+    delSelected:'Delete Selected',clearFiltered:'Clear Filtered',clearAll:'Clear All',
+    selectAll:'Select All',selectedCount:'selected',
+    confirmDelSelected:'Delete {n} selected items?',
+    confirmClearFiltered:'Clear all {n} filtered results ({desc})?',
+    confirmClearAll:'Delete ALL {n} results? This cannot be undone!'
   },
   zh:{
     loginSub:'自动化控制台',username:'用户名',password:'密码',signin:'登录',
@@ -431,7 +445,12 @@ const i18n={
     security:'安全',newUsername:'新用户名',newPassword:'新密码',confirm:'确认',
     updateCred:'更新凭据',pwdMismatch:'密码不匹配',
     terminal:'终端',close:'关闭',enterCred:'请输入凭据',done:'完成',
-    expAccount:'账号密码',expCred:'凭据'
+    expAccount:'账号密码',expCred:'凭据',
+    delSelected:'删除选中',clearFiltered:'清空筛选',clearAll:'清空全部',
+    selectAll:'全选',selectedCount:'已选中',
+    confirmDelSelected:'确定删除 {n} 条选中记录？',
+    confirmClearFiltered:'确定清空 {n} 条筛选结果（{desc}）？',
+    confirmClearAll:'确定删除全部 {n} 条记录？此操作不可恢复！'
   }
 };
 let lang=localStorage.getItem('lang')||'en',tk=localStorage.getItem('tk')||'',R=[],AB={grok:null,fireworks:null};
@@ -524,17 +543,67 @@ function getFiltered(){
 }
 function render(){
   const f=getFiltered(),tb=$('tbody');tb.innerHTML='';
-  f.forEach(r=>{const tr=document.createElement('tr');const c=r.platform==='fireworks'?(r.data.apikey||'-'):r.platform==='openrouter'?(r.data.api_key||'-'):(r.data.auth_token||'-');const i=R.indexOf(r);const bc=r.platform==='grok'?'grok':r.platform==='fireworks'?'fw':'or';
-    tr.innerHTML=`<td><span class="pill-badge ${bc}">${r.platform}</span></td><td style="font-weight:500">${esc(r.email||'-')}</td><td class="mono">${esc(r.data?.password||'-')}</td><td class="mono">${esc(c.length>22?c.slice(0,22)+'…':c)}</td><td><span class="pill-badge ${r.status==='success'?'ok':'fail'}">${r.status}</span></td><td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="cpRow(${i})">${t('copy')}</button></td>`;
-    tb.appendChild(tr)})
+  f.forEach(r=>{const tr=document.createElement('tr');const c=r.platform==='fireworks'?(r.data?.apikey||'-'):r.platform==='openrouter'?(r.data?.api_key||'-'):(r.data?.auth_token||'-');const i=R.indexOf(r);const bc=r.platform==='grok'?'grok':r.platform==='fireworks'?'fw':'or';
+    tr.innerHTML=`<td><input type="checkbox" class="row-chk" data-idx="${i}" onchange="updateSelected()"></td><td><span class="pill-badge ${bc}">${r.platform}</span></td><td style="font-weight:500">${esc(r.email||'-')}</td><td class="mono">${esc(r.data?.password||'-')}</td><td class="mono">${esc(c.length>22?c.slice(0,22)+'…':c)}</td><td><span class="pill-badge ${r.status==='success'?'ok':'fail'}">${r.status}</span></td><td style="text-align:right"><button class="btn btn-outline btn-sm" onclick="cpRow(${i})">${t('copy')}</button></td>`;
+    tb.appendChild(tr)});
+  $('checkAll').checked=false;updateSelected();
 }
-function cpRow(i){const r=R[i];const c=r.platform==='fireworks'?(r.data.apikey||''):r.platform==='openrouter'?(r.data.api_key||''):(r.data.auth_token||'');navigator.clipboard.writeText(`${r.email}----${r.data.password||''}----${c}`);toast(t('copied'))}
+function cpRow(i){const r=R[i];const c=r.platform==='fireworks'?(r.data?.apikey||''):r.platform==='openrouter'?(r.data?.api_key||''):(r.data?.auth_token||'');navigator.clipboard.writeText(`${r.email}----${r.data?.password||''}----${c}`);toast(t('copied'))}
+
+/* Select / Delete */
+function toggleAll(){
+  const checked=$('checkAll').checked;
+  document.querySelectorAll('.row-chk').forEach(cb=>cb.checked=checked);
+  updateSelected();
+}
+function updateSelected(){
+  const checked=document.querySelectorAll('.row-chk:checked');
+  const n=checked.length;
+  $('selectedCount').textContent=n>0?`${n} ${t('selectedCount')}`:'';
+}
+function getSelectedIndices(){
+  return Array.from(document.querySelectorAll('.row-chk:checked')).map(cb=>parseInt(cb.dataset.idx));
+}
+function filterDesc(){
+  const p=$('fPlat').value,s=$('fStatus').value;
+  const parts=[];
+  if(p!=='all')parts.push(p);
+  if(s!=='all')parts.push(t(s));
+  return parts.length?parts.join(' / '):t('all');
+}
+
+async function delSelected(){
+  const indices=getSelectedIndices();
+  if(!indices.length)return toast(t('noData'));
+  if(!confirm(t('confirmDelSelected').replace('{n}',indices.length)))return;
+  try{
+    const r=await fetch('/api/results/batch',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({indices})});
+    if(r.ok){await loadResults();toast(`${indices.length} ${t('done')}`)}
+  }catch(e){toast('Error: '+e.message)}
+}
+
+async function clearFiltered(){
+  const f=getFiltered();
+  if(!f.length)return toast(t('noData'));
+  const p=$('fPlat').value,s=$('fStatus').value;
+  const desc=filterDesc();
+  if(!confirm(t('confirmClearFiltered').replace('{n}',f.length).replace('{desc}',desc)))return;
+  try{
+    const body={};
+    if(p!=='all')body.platform=p;
+    if(s!=='all')body.status=s;
+    const r=await fetch('/api/results/filter',{method:'DELETE',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify(body)});
+    if(r.ok){await loadResults();toast(t('done'))}
+  }catch(e){toast('Error: '+e.message)}
+}
+
 async function clearAll(){
-  if(!confirm(t('clearConfirm')))return;
+  if(!R.length)return toast(t('noData'));
+  if(!confirm(t('confirmClearAll').replace('{n}',R.length)))return;
   try{
     const r=await api('DELETE','/api/results');
-    if(r.ok){R=[];stats();render();toast('已清空')}
-  }catch(e){toast('清空失败')}
+    if(r.ok){R=[];stats();render();toast(t('done'))}
+  }catch(e){toast('Error: '+e.message)}
 }
 function expAccount(){const f=getFiltered().filter(r=>r.status==='success');const d=f.map(r=>`${r.email}----${r.data.password||''}`).join('\n');if(!d)return toast(i18n[lang].noData);dl(d,'text/plain','accounts.txt')}
 function expCred(){const f=getFiltered().filter(r=>r.status==='success');const d=f.map(r=>{const c=r.platform==='fireworks'?(r.data.apikey||''):r.platform==='openrouter'?(r.data.api_key||''):(r.data.auth_token||'');return c}).join('\n');if(!d)return toast(i18n[lang].noData);dl(d,'text/plain','credentials.txt')}

@@ -88,3 +88,51 @@ func (s *ResultStorage) Clear() error {
 
 	return s.Save()
 }
+
+// DeleteByIndices 删除指定索引的结果
+func (s *ResultStorage) DeleteByIndices(indices []int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 转为 map 快速查找
+	toDelete := make(map[int]bool)
+	for _, idx := range indices {
+		if idx >= 0 && idx < len(s.results) {
+			toDelete[idx] = true
+		}
+	}
+
+	// 过滤
+	filtered := []RegisterResult{}
+	for i, r := range s.results {
+		if !toDelete[i] {
+			filtered = append(filtered, r)
+		}
+	}
+	s.results = filtered
+
+	return s.Save()
+}
+
+// DeleteByFilter 删除符合筛选条件的结果
+func (s *ResultStorage) DeleteByFilter(platform, status string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	filtered := []RegisterResult{}
+	for _, r := range s.results {
+		match := true
+		if platform != "" && r.Platform != platform {
+			match = false
+		}
+		if status != "" && r.Status != status {
+			match = false
+		}
+		if !match {
+			filtered = append(filtered, r)
+		}
+	}
+	s.results = filtered
+
+	return s.Save()
+}
