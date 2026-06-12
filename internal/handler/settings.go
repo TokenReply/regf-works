@@ -23,7 +23,7 @@ func NewSettingsHandler(cfg *config.Config) *SettingsHandler {
 
 // MailSettings 邮箱配置（前端可读写）
 type MailSettings struct {
-	ProviderPriority string `json:"provider_priority"` // 如 "ahem,yydsmail,gptmail"
+	ProviderPriority string `json:"provider_priority"` // 如 "ahem,yydsmail,gptmail,moemail"
 	YYDS             struct {
 		BaseURL string `json:"base_url"`
 		APIKey  string `json:"api_key"`
@@ -36,6 +36,12 @@ type MailSettings struct {
 		BaseURL string `json:"base_url"` // GPTMail 服务地址（默认 https://mail.chatgpt.org.uk）
 		APIKey  string `json:"api_key"`  // GPTMail API Key
 	} `json:"gptmail"`
+	MoeMail struct {
+		BaseURL    string `json:"base_url"`    // MoeMail 自建服务地址
+		APIKey     string `json:"api_key"`     // MoeMail API Key
+		Domains    string `json:"domains"`     // 可用域名列表（逗号分隔，留空自动获取）
+		ExpiryTime int64  `json:"expiry_time"` // 邮箱有效期（毫秒），默认 3600000 (1小时)
+	} `json:"moemail"`
 }
 
 // GetMailSettings GET /api/settings/mail — 获取当前邮箱配置
@@ -51,6 +57,10 @@ func (h *SettingsHandler) GetMailSettings(c *gin.Context) {
 	resp.Ahem.Domains = h.cfg.Mail.Ahem.Domains
 	resp.GPTMail.BaseURL = h.cfg.Mail.GPTMail.BaseURL
 	resp.GPTMail.APIKey = maskKey(h.cfg.Mail.GPTMail.APIKey)
+	resp.MoeMail.BaseURL = h.cfg.Mail.MoeMail.BaseURL
+	resp.MoeMail.APIKey = maskKey(h.cfg.Mail.MoeMail.APIKey)
+	resp.MoeMail.Domains = h.cfg.Mail.MoeMail.Domains
+	resp.MoeMail.ExpiryTime = h.cfg.Mail.MoeMail.ExpiryTime
 
 	c.JSON(http.StatusOK, resp)
 }
@@ -92,6 +102,18 @@ func (h *SettingsHandler) UpdateMailSettings(c *gin.Context) {
 	}
 	if req.GPTMail.APIKey != "" && req.GPTMail.APIKey != "***" {
 		h.cfg.Mail.GPTMail.APIKey = req.GPTMail.APIKey
+	}
+
+	// 更新 MoeMail 配置
+	if req.MoeMail.BaseURL != "" {
+		h.cfg.Mail.MoeMail.BaseURL = req.MoeMail.BaseURL
+	}
+	if req.MoeMail.APIKey != "" && req.MoeMail.APIKey != "***" {
+		h.cfg.Mail.MoeMail.APIKey = req.MoeMail.APIKey
+	}
+	h.cfg.Mail.MoeMail.Domains = req.MoeMail.Domains
+	if req.MoeMail.ExpiryTime > 0 {
+		h.cfg.Mail.MoeMail.ExpiryTime = req.MoeMail.ExpiryTime
 	}
 
 	c.JSON(http.StatusOK, gin.H{

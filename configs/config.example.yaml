@@ -22,6 +22,22 @@ mail:
     base_url: ""
     # 可用域名列表（逗号分隔）。留空则自动从 /api/properties 获取
     domains: ""
+  gptmail:
+    # GPTMail 服务地址（默认 https://mail.chatgpt.org.uk）
+    base_url: ""
+    # GPTMail API Key（可从服务商获取）
+    api_key: ""
+  moemail:
+    # MoeMail 自建邮箱服务地址（需自行部署）
+    # API 文档: https://docs.moemail.app/api.html
+    base_url: ""
+    # MoeMail API Key（必需，从个人中心创建）
+    api_key: ""
+    # 可用域名列表（逗号分隔）。留空则自动从 /api/config 获取
+    domains: ""
+    # 邮箱有效期（毫秒），默认 3600000 (1小时)
+    # 可选值：3600000（1小时）、86400000（1天）、604800000（7天）、0（永久）
+    expiry_time: 3600000
 
 turnstile:
   solver_urls: []

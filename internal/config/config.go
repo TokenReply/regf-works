@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -41,6 +42,7 @@ type MailConfig struct {
 	YYDS             YYDSMailConfig `mapstructure:"yydsmail"`
 	Ahem             AhemConfig     `mapstructure:"ahem"`
 	GPTMail          GPTMailConfig  `mapstructure:"gptmail"`
+	MoeMail          MoeMailConfig  `mapstructure:"moemail"`
 }
 
 type YYDSMailConfig struct {
@@ -56,6 +58,13 @@ type AhemConfig struct {
 type GPTMailConfig struct {
 	BaseURL string `mapstructure:"base_url"`
 	APIKey  string `mapstructure:"api_key"`
+}
+
+type MoeMailConfig struct {
+	BaseURL    string `mapstructure:"base_url"`
+	APIKey     string `mapstructure:"api_key"`
+	Domains    string `mapstructure:"domains"`
+	ExpiryTime int64  `mapstructure:"expiry_time"` // 毫秒，默认 3600000 (1小时)
 }
 
 type TurnstileConfig struct {
@@ -128,6 +137,10 @@ func (c *Config) ToGrokConfig() common.Config {
 		"ahem_domains":          c.Mail.Ahem.Domains,
 		"gptmail_base_url":      c.Mail.GPTMail.BaseURL,
 		"gptmail_api_key":       c.Mail.GPTMail.APIKey,
+		"moemail_base_url":      c.Mail.MoeMail.BaseURL,
+		"moemail_api_key":       c.Mail.MoeMail.APIKey,
+		"moemail_domains":       c.Mail.MoeMail.Domains,
+		"moemail_expiry_time":   fmt.Sprintf("%d", c.Mail.MoeMail.ExpiryTime),
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }
@@ -142,6 +155,10 @@ func (c *Config) ToFireworksConfig() common.Config {
 		"ahem_domains":           c.Mail.Ahem.Domains,
 		"gptmail_base_url":       c.Mail.GPTMail.BaseURL,
 		"gptmail_api_key":        c.Mail.GPTMail.APIKey,
+		"moemail_base_url":       c.Mail.MoeMail.BaseURL,
+		"moemail_api_key":        c.Mail.MoeMail.APIKey,
+		"moemail_domains":        c.Mail.MoeMail.Domains,
+		"moemail_expiry_time":    fmt.Sprintf("%d", c.Mail.MoeMail.ExpiryTime),
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }

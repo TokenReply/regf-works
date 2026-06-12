@@ -108,6 +108,24 @@ func NewMultiProvider(cfg map[string]string) *MultiProvider {
 		}
 	}
 
+	// MoeMail（自建邮箱服务，API Key 授权，需自行部署）
+	if prioritySet["moemail"] {
+		moeURL := cfg["moemail_base_url"]
+		moeKey := cfg["moemail_api_key"]
+		moeDomains := cfg["moemail_domains"]
+		var moeExpiry int64 = 3600000 // 默认 1 小时
+		if v := cfg["moemail_expiry_time"]; v != "" {
+			fmt.Sscanf(v, "%d", &moeExpiry)
+		}
+		if moeURL != "" && moeKey != "" {
+			if p := NewMoeMailProvider(moeURL, moeKey, moeDomains, moeExpiry); p != nil {
+				available["moemail"] = p
+			}
+		} else {
+			log.Warn().Msg("moemail 在优先级列表中但未配置 moemail_base_url 或 moemail_api_key")
+		}
+	}
+
 	// 按优先级排列（严格模式：仅使用优先级列表中的 provider）
 	var providers []EmailProvider
 	for _, name := range strings.Split(priority, ",") {
