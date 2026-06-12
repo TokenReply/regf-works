@@ -199,9 +199,10 @@
   <div class="topbar">
     <div class="topbar-logo">regf-works</div>
     <div class="topbar-nav">
-      <div class="tab on" data-v="register" onclick="nav('register')" data-i="register">Register</div>
-      <div class="tab" data-v="results" onclick="nav('results')" data-i="results">Results</div>
-      <div class="tab" data-v="settings" onclick="nav('settings')" data-i="settings">Settings</div>
+      <div class="tab on" data-v="register" onclick="nav('register')" data-i="register">注册</div>
+      <div class="tab" data-v="results" onclick="nav('results')" data-i="results">结果</div>
+      <div class="tab" data-v="mail" onclick="nav('mail')" data-i="mail">邮箱</div>
+      <div class="tab" data-v="settings" onclick="nav('settings')" data-i="settings">设置</div>
     </div>
     <div class="topbar-right">
       <button class="btn btn-ghost btn-sm" onclick="toggleLang()" id="langBtn" style="font-size:13px">中文</button>
@@ -285,10 +286,10 @@
         </div>
       </div>
 
-      <!-- ═ Settings ═ -->
-      <div id="v-settings" class="hide">
+      <!-- ═ Mail ═ -->
+      <div id="v-mail" class="hide">
         <div class="card">
-          <div class="card-title" data-i="mail">Mail</div>
+          <div class="card-title" data-i="mail">邮箱</div>
           <div class="field"><label data-i="providerPri">Provider priority</label><input class="inp" id="sPri" placeholder="ahem,yydsmail"></div>
           <div class="grid-2">
             <div class="field"><label data-i="ahemUrl">AHEM URL</label><input class="inp" id="sAU" placeholder="https://mail.jiuuij.de5.net"></div>
@@ -300,14 +301,30 @@
           </div>
           <button class="btn btn-fill" onclick="saveMail()" data-i="saveMailCfg">Save mail config</button>
         </div>
+
         <div class="card">
-          <div class="card-title" data-i="proxy2">Proxy</div>
+          <div class="card-title" data-i="grokBlacklist">Grok 域名黑名单</div>
+          <div id="grokBlacklistContent" style="min-height:60px;color:var(--text-2);font-size:14px"></div>
+          <button class="btn btn-outline btn-sm" onclick="clearBlacklist('grok')" data-i="clearBlacklist" style="margin-top:12px">清空黑名单</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title" data-i="fireworksBlacklist">Fireworks 域名黑名单</div>
+          <div id="fireworksBlacklistContent" style="min-height:60px;color:var(--text-2);font-size:14px"></div>
+          <button class="btn btn-outline btn-sm" onclick="clearBlacklist('fireworks')" data-i="clearBlacklist" style="margin-top:12px">清空黑名单</button>
+        </div>
+      </div>
+
+      <!-- ═ Settings ═ -->
+      <div id="v-settings" class="hide">
+        <div class="card">
+          <div class="card-title" data-i="proxy2">代理</div>
           <div class="field"><label data-i="defaultProxy">Default proxy</label><input class="inp" id="sPD" placeholder="http://user:pass@host:port"></div>
           <div class="field"><label data-i="poolLine">Pool (one per line)</label><textarea class="inp" id="sPP" rows="3"></textarea></div>
           <button class="btn btn-fill" onclick="saveProxy()" data-i="saveProxyCfg">Save proxy config</button>
         </div>
         <div class="card">
-          <div class="card-title" data-i="security">Security</div>
+          <div class="card-title" data-i="security">安全</div>
           <div class="field"><label data-i="newUsername">New username</label><input class="inp" id="sNU"></div>
           <div class="grid-2">
             <div class="field"><label data-i="newPassword">New password</label><input class="inp" type="password" id="sNP"></div>
@@ -337,15 +354,17 @@
 const i18n={
   en:{
     loginSub:'Automation Console',username:'Username',password:'Password',signin:'Sign in',
-    register:'Register',results:'Results',settings:'Settings',logout:'Logout',
+    register:'Register',results:'Results',mail:'Mail',settings:'Settings',logout:'Logout',
     grokReg:'Grok Registration',fireworksReg:'Fireworks Registration',
     proxy:'Proxy (optional)',totalCount:'Total accounts',concurrency:'Concurrency',emailProvider:'Email provider',auto:'Auto',
     startReg:'Start registration',stop:'Stop',
     total:'Total',success:'Success',failed:'Failed',all:'All',search:'Search...',
     clear:'Clear',platform:'Platform',email:'Email',password2:'Password',credential:'Credential',
     status:'Status',action:'Action',copy:'Copy',copied:'Copied',clearConfirm:'Clear all results?',noData:'No data',
-    mail:'Mail',providerPri:'Provider priority',ahemUrl:'AHEM URL',ahemDomains:'AHEM Domains',
+    providerPri:'Provider priority',ahemUrl:'AHEM URL',ahemDomains:'AHEM Domains',
     yydsUrl:'YYDS URL',yydsKey:'YYDS API Key',saveMailCfg:'Save mail config',mailSaved:'Mail config saved',
+    grokBlacklist:'Grok Domain Blacklist',fireworksBlacklist:'Fireworks Domain Blacklist',
+    clearBlacklist:'Clear Blacklist',noBanned:'No banned domains',bannedAgo:'banned',
     proxy2:'Proxy',defaultProxy:'Default proxy',poolLine:'Pool (one per line)',saveProxyCfg:'Save proxy config',proxySaved:'Proxy config saved',
     security:'Security',newUsername:'New username',newPassword:'New password',confirm:'Confirm',
     updateCred:'Update credentials',pwdMismatch:'Password mismatch',
@@ -354,15 +373,17 @@ const i18n={
   },
   zh:{
     loginSub:'自动化控制台',username:'用户名',password:'密码',signin:'登录',
-    register:'注册',results:'结果',settings:'设置',logout:'退出',
+    register:'注册',results:'结果',mail:'邮箱',settings:'设置',logout:'退出',
     grokReg:'Grok 注册',fireworksReg:'Fireworks 注册',
     proxy:'代理 (可选)',totalCount:'注册总数',concurrency:'并发数',emailProvider:'邮箱提供商',auto:'自动',
     startReg:'开始注册',stop:'停止',
     total:'总数',success:'成功',failed:'失败',all:'全部',search:'搜索...',
     clear:'清空',platform:'平台',email:'邮箱',password2:'密码',credential:'凭据',
     status:'状态',action:'操作',copy:'复制',copied:'已复制',clearConfirm:'确定清空所有结果？',noData:'无数据',
-    mail:'邮箱',providerPri:'提供商优先级',ahemUrl:'AHEM URL',ahemDomains:'AHEM 域名',
+    providerPri:'提供商优先级',ahemUrl:'AHEM URL',ahemDomains:'AHEM 域名',
     yydsUrl:'YYDS URL',yydsKey:'YYDS API Key',saveMailCfg:'保存邮箱配置',mailSaved:'邮箱配置已保存',
+    grokBlacklist:'Grok 域名黑名单',fireworksBlacklist:'Fireworks 域名黑名单',
+    clearBlacklist:'清空黑名单',noBanned:'暂无黑名单域名',bannedAgo:'前拉黑',
     proxy2:'代理',defaultProxy:'默认代理',poolLine:'代理池 (每行一个)',saveProxyCfg:'保存代理配置',proxySaved:'代理配置已保存',
     security:'安全',newUsername:'新用户名',newPassword:'新密码',confirm:'确认',
     updateCred:'更新凭据',pwdMismatch:'密码不匹配',
@@ -397,10 +418,10 @@ async function doLogin(){
 }
 function doLogout(){tk='';localStorage.removeItem('tk');$('app').classList.remove('show');$('loginPage').style.display='flex';applyI18n()}
 async function chk(){try{const r=await api('GET','/api/auth/me');if(r.ok){enter((await r.json()).username);applyI18n()}else doLogout()}catch{doLogout()}}
-function enter(u){$('loginPage').style.display='none';$('app').classList.add('show');$('dispUser').textContent=u;applyI18n();stats();render();loadCfg()}
+function enter(u){$('loginPage').style.display='none';$('app').classList.add('show');$('dispUser').textContent=u;applyI18n();stats();render();loadCfg();loadBlacklists()}
 
 /* Nav */
-function nav(v){document.querySelectorAll('.topbar-nav .tab').forEach(e=>e.classList.toggle('on',e.dataset.v===v));['register','results','settings'].forEach(k=>$('v-'+k).classList.toggle('hide',k!==v))}
+function nav(v){document.querySelectorAll('.topbar-nav .tab').forEach(e=>e.classList.toggle('on',e.dataset.v===v));['register','results','mail','settings'].forEach(k=>$('v-'+k).classList.toggle('hide',k!==v));if(v==='mail')loadBlacklists()}
 function tab(t){document.querySelectorAll('.pill').forEach(e=>e.classList.toggle('on',e.dataset.t===t));$('t-grok').classList.toggle('hide',t!=='grok');$('t-fireworks').classList.toggle('hide',t!=='fireworks')}
 function toggleLog(){$('logDrawer').classList.toggle('open')}
 function addLog(t){const d=document.createElement('div');d.className='l '+(t.includes('[+]')||t.includes('[OK]')?'ok':t.includes('[-]')?'err':'info');d.textContent=t;$('logBody').appendChild(d);$('logBody').scrollTop=$('logBody').scrollHeight}
@@ -448,6 +469,33 @@ async function loadCfg(){
 async function saveMail(){await api('POST','/api/settings/mail',{provider_priority:$('sPri').value,ahem:{base_url:$('sAU').value,domains:$('sAD').value},yydsmail:{base_url:$('sYU').value,api_key:$('sYK').value}});toast(t('mailSaved'))}
 async function saveProxy(){await api('POST','/api/settings/proxy',{default:$('sPD').value,pool:$('sPP').value.split('\n').filter(Boolean)});toast(t('proxySaved'))}
 async function saveAuth(){const np=$('sNP').value;if(np&&np!==$('sNP2').value)return toast(t('pwdMismatch'));const r=await api('POST','/api/auth/credentials',{new_username:$('sNU').value,new_password:np});if((await r.json()).logout)doLogout()}
+
+/* Blacklist */
+async function loadBlacklists(){
+  try{
+    const[rg,rf]=await Promise.all([api('GET','/api/blacklist/grok'),api('GET','/api/blacklist/fireworks')]);
+    if(rg.ok){const d=await rg.json();renderBlacklist('grokBlacklistContent',d.domains||[])}
+    if(rf.ok){const d=await rf.json();renderBlacklist('fireworksBlacklistContent',d.domains||[])}
+  }catch(e){console.error('loadBlacklists error',e)}
+}
+function renderBlacklist(elId,domains){
+  const el=$(elId);
+  if(!domains||domains.length===0){el.innerHTML=`<span style="color:var(--text-3)">${t('noBanned')}</span>`;return}
+  let html='<div style="display:flex;flex-direction:column;gap:8px">';
+  domains.forEach(d=>{
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+      <span style="font-family:var(--mono);font-size:13px;font-weight:500">${esc(d.domain)}</span>
+      <span style="font-size:12px;color:var(--text-3)">${d.ago} ${t('bannedAgo')}</span>
+    </div>`;
+  });
+  html+='</div>';
+  el.innerHTML=html;
+}
+async function clearBlacklist(platform){
+  await api('DELETE','/api/blacklist/'+platform);
+  toast(t('clearBlacklist')+' ('+platform+')');
+  loadBlacklists();
+}
 
 function $(id){return document.getElementById(id)}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}

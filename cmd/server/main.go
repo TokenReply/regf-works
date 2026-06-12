@@ -88,6 +88,14 @@ func main() {
 				settings.GET("/proxy", settingsHandler.GetProxySettings)
 				settings.POST("/proxy", settingsHandler.UpdateProxySettings)
 			}
+
+			blacklist := protected.Group("/blacklist")
+			{
+				blacklist.GET("/grok", handler.GetGrokBlacklist)
+				blacklist.GET("/fireworks", handler.GetFireworksBlacklist)
+				blacklist.DELETE("/grok", handler.ClearGrokBlacklist)
+				blacklist.DELETE("/fireworks", handler.ClearFireworksBlacklist)
+			}
 		}
 	}
 

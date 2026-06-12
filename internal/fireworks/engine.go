@@ -18,6 +18,15 @@ import (
 	"github.com/grok-fireworks-reg/pkg/tempmail"
 )
 
+// ─── 邮箱域名黑名单 ───
+
+var fireworksBlacklist = tempmail.NewDomainBlacklist("fireworks", 2*time.Hour, "data/blacklist.json")
+
+// GetBlacklist 返回 Fireworks 黑名单实例（供 API handler 访问）
+func GetBlacklist() *tempmail.DomainBlacklist {
+	return fireworksBlacklist
+}
+
 // Register 执行一次完整的 Fireworks 注册流程
 // 1. 通过 MultiProvider 创建临时邮箱
 // 2. 调用 Python 注册服务（POST /fireworks/process）
@@ -33,17 +42,44 @@ func Register(ctx context.Context, opts RegisterOpts) *common.RegisterResult {
 	// 获取服务地址
 	serviceURL := common.SettingOrDefault(opts.Config, "fireworks_reg_url", "http://127.0.0.1:5000")
 
-	// 1. 创建临时邮箱
+	// 1. 创建临时邮箱（含黑名单过滤 + 重试）
 	logf("创建临时邮箱...")
 	mailProvider := tempmail.NewMultiProvider(opts.Config)
 	if mailProvider.ProviderCount() == 0 {
 		return &common.RegisterResult{OK: false, Error: "无可用邮箱 provider", Platform: "fireworks"}
 	}
 
-	email, meta, err := mailProvider.GenerateEmail(ctx)
-	if err != nil {
-		return &common.RegisterResult{OK: false, Error: fmt.Sprintf("创建邮箱失败: %s", err), Platform: "fireworks"}
+	// 生成邮箱并检查黑名单，最多重试 3 次
+	var email string
+	var meta map[string]string
+	var err error
+	maxRetries := 3
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		email, meta, err = mailProvider.GenerateEmail(ctx)
+		if err != nil {
+			return &common.RegisterResult{OK: false, Error: fmt.Sprintf("创建邮箱失败: %s", err), Platform: "fireworks"}
+		}
+		
+		// 检查域名是否在黑名单中
+		domain := tempmail.ExtractDomain(email)
+		if fireworksBlacklist.IsBanned(domain) {
+			logf("[!] 域名 %s 已被拉黑，重新生成邮箱 (attempt %d/%d)", domain, attempt+1, maxRetries)
+			// 清理当前邮箱
+			go mailProvider.DeleteEmail(context.Background(), email, meta)
+			continue
+		}
+		
+		// 找到了非黑名单域名，跳出循环
+		break
 	}
+	
+	// 如果 3 次重试后仍然是黑名单域名
+	domain := tempmail.ExtractDomain(email)
+	if fireworksBlacklist.IsBanned(domain) {
+		logf("[-] 无法获取非黑名单邮箱，已重试 %d 次", maxRetries)
+		return &common.RegisterResult{OK: false, Email: email, Error: "无法获取非黑名单邮箱", Platform: "fireworks"}
+	}
+	
 	logf("邮箱已创建: %s (provider=%s)", email, meta["provider"])
 
 	// 清理邮箱（注册完成后）
@@ -103,6 +139,15 @@ func Register(ctx context.Context, opts RegisterOpts) *common.RegisterResult {
 		logf("注册成功: email=%s account_id=%s key=%s...", email, result.AccountID, common.TruncStr(result.APIKey, 10))
 	} else {
 		logf("注册失败: %s (retriable=%v)", result.Error, result.Retriable)
+		// 如果错误信息包含邮箱域名拒绝的关键词，拉黑该域名
+		errLower := strings.ToLower(result.Error)
+		if strings.Contains(errLower, "email") && (strings.Contains(errLower, "domain") || 
+			strings.Contains(errLower, "not allowed") || strings.Contains(errLower, "reject") ||
+			strings.Contains(errLower, "invalid") || strings.Contains(errLower, "blocked")) {
+			d := tempmail.ExtractDomain(email)
+			fireworksBlacklist.Ban(d)
+			logf("[!] 域名 %s 已拉黑 (Fireworks 拒绝: %s)", d, result.Error)
+		}
 	}
 
 	return &common.RegisterResult{

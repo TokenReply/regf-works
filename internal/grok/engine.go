@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/grok-fireworks-reg/internal/common"
@@ -35,53 +34,13 @@ var (
 	reCookieURLQuoted = regexp.MustCompile(`(https://[^"\s]+set-cookie\?q=[^:"\s]+)`)
 )
 
-// ─── 邮箱域名黑名单（进程级缓存） ───
+// ─── 邮箱域名黑名单 ───
 
-var (
-	bannedDomains   = make(map[string]time.Time) // domain → banned time
-	bannedDomainsMu sync.RWMutex
-)
+var grokBlacklist = tempmail.NewDomainBlacklist("grok", 2*time.Hour, "data/blacklist.json")
 
-// banDomain 将域名加入黑名单
-func banDomain(domain string) {
-	domain = strings.ToLower(strings.TrimSpace(domain))
-	if domain == "" {
-		return
-	}
-	bannedDomainsMu.Lock()
-	bannedDomains[domain] = time.Now()
-	bannedDomainsMu.Unlock()
-}
-
-// isDomainBanned 检查域名是否在黑名单中（1小时过期自动清除）
-func isDomainBanned(domain string) bool {
-	domain = strings.ToLower(strings.TrimSpace(domain))
-	if domain == "" {
-		return false
-	}
-	bannedDomainsMu.RLock()
-	bannedAt, ok := bannedDomains[domain]
-	bannedDomainsMu.RUnlock()
-	if !ok {
-		return false
-	}
-	// 1小时过期，避免永久封禁误判
-	if time.Since(bannedAt) > time.Hour {
-		bannedDomainsMu.Lock()
-		delete(bannedDomains, domain)
-		bannedDomainsMu.Unlock()
-		return false
-	}
-	return true
-}
-
-// emailDomain 提取邮箱的域名部分
-func emailDomain(email string) string {
-	parts := strings.SplitN(email, "@", 2)
-	if len(parts) != 2 {
-		return ""
-	}
-	return strings.ToLower(parts[1])
+// GetBlacklist 返回 Grok 黑名单实例（供 API handler 访问）
+func GetBlacklist() *tempmail.DomainBlacklist {
+	return grokBlacklist
 }
 
 // ─── 主注册流程 ───
@@ -121,20 +80,51 @@ func Register(ctx context.Context, opts RegisterOpts) *common.RegisterResult {
 		resp.Body.Close()
 	}
 
-	// ─── Phase 1: 创建临时邮箱（多 provider 自动切换）───
+	// ─── Phase 1: 创建临时邮箱（多 provider 自动切换 + 黑名单过滤）───
 	// 平台专属邮箱 provider 覆盖全局优先级
 	if platformProviders := opts.Config["grok_email_providers"]; platformProviders != "" {
 		opts.Config["email_provider_priority"] = platformProviders
 	}
 	mailProvider := tempmail.NewMultiProvider(opts.Config)
-	email, mailMeta, err := mailProvider.GenerateEmail(ctx)
-	if err != nil {
-		logf("[-] 创建邮箱失败: %s", err)
+	
+	// 生成邮箱并检查黑名单，最多重试 3 次
+	var email string
+	var mailMeta map[string]string
+	var err error
+	maxRetries := 3
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		email, mailMeta, err = mailProvider.GenerateEmail(ctx)
+		if err != nil {
+			logf("[-] 创建邮箱失败: %s", err)
+			if opts.OnFail != nil {
+				opts.OnFail()
+			}
+			return &common.RegisterResult{OK: false, Error: fmt.Sprintf("创建邮箱失败: %s", err)}
+		}
+		
+		// 检查域名是否在黑名单中
+		domain := tempmail.ExtractDomain(email)
+		if grokBlacklist.IsBanned(domain) {
+			logf("[!] 域名 %s 已被拉黑，重新生成邮箱 (attempt %d/%d)", domain, attempt+1, maxRetries)
+			// 清理当前邮箱
+			go mailProvider.DeleteEmail(context.Background(), email, mailMeta)
+			continue
+		}
+		
+		// 找到了非黑名单域名，跳出循环
+		break
+	}
+	
+	// 如果 3 次重试后仍然是黑名单域名
+	domain := tempmail.ExtractDomain(email)
+	if grokBlacklist.IsBanned(domain) {
+		logf("[-] 无法获取非黑名单邮箱，已重试 %d 次", maxRetries)
 		if opts.OnFail != nil {
 			opts.OnFail()
 		}
-		return &common.RegisterResult{OK: false, Error: fmt.Sprintf("创建邮箱失败: %s", err)}
+		return &common.RegisterResult{OK: false, Email: email, Error: "无法获取非黑名单邮箱"}
 	}
+	
 	password := common.RandomString(15, "abcdefghijklmnopqrstuvwxyz0123456789")
 	logf("[*] 邮箱: %s (via %s)", email, mailMeta["provider"])
 
@@ -157,6 +147,12 @@ func Register(ctx context.Context, opts RegisterOpts) *common.RegisterResult {
 			sendResp.Body.Close()
 		}
 		logf("[-] 发送验证码失败: HTTP %d, %v", status, err)
+		// HTTP 400/403 可能是邮箱域名被拒绝，拉黑该域名
+		if status == 400 || status == 403 {
+			d := tempmail.ExtractDomain(email)
+			grokBlacklist.Ban(d)
+			logf("[!] 域名 %s 已拉黑 (Grok 拒绝，HTTP %d)", d, status)
+		}
 		if opts.OnFail != nil {
 			opts.OnFail()
 		}
