@@ -143,10 +143,11 @@ async def solve_turnstile(
     solver_api: str = "http://localhost:5072",
     yescaptcha_key: str = "",
     log_fn=None,
+    proxy: str = "",
 ) -> str:
     if solver_type == "yescaptcha":
         return await _solve_yescaptcha(client, yescaptcha_key, log_fn)
-    return await _solve_selfhost(client, solver_api, log_fn)
+    return await _solve_selfhost(client, solver_api, log_fn, proxy=proxy)
 
 
 async def _solve_yescaptcha(
@@ -198,6 +199,7 @@ async def _solve_selfhost(
     solver_api: str = "http://localhost:5072",
     log_fn=None,
     max_retries: int = 3,
+    proxy: str = "",
 ) -> str:
     def lq(msg):
         if log_fn:
@@ -208,11 +210,12 @@ async def _solve_selfhost(
     for attempt in range(1, max_retries + 1):
         try:
             lq(f"[captcha] selfhost 第 {attempt}/{max_retries} 次尝试...")
-            resp = await client.get(
-                f"{base}/turnstile",
-                params={"url": TURNSTILE_PAGE_URL, "sitekey": TURNSTILE_SITEKEY},
-                timeout=30,
-            )
+            # Solver 在本地，不能走代理，用独立的无代理 client
+            params = {"url": TURNSTILE_PAGE_URL, "sitekey": TURNSTILE_SITEKEY}
+            if proxy:
+                params["proxy"] = proxy
+            async with httpx.AsyncClient(timeout=30) as solver_client:
+                resp = await solver_client.get(f"{base}/turnstile", params=params)
             resp.raise_for_status()
             data = resp.json()
             if data.get("errorId"):
@@ -228,7 +231,8 @@ async def _solve_selfhost(
             for poll in range(60):
                 await asyncio.sleep(3)
                 try:
-                    r = await client.get(f"{base}/result", params={"id": task_id}, timeout=15)
+                    async with httpx.AsyncClient(timeout=15) as solver_client:
+                        r = await solver_client.get(f"{base}/result", params={"id": task_id})
                 except Exception as e:
                     lq(f"[captcha] 轮询异常: {e}")
                     continue
@@ -782,6 +786,7 @@ async def _do_openrouter_register(
                 solver_api=solver_api,
                 yescaptcha_key=yescaptcha_key,
                 log_fn=lq,
+                proxy=proxy_url or "",
             )
 
             # 3. 提交注册
