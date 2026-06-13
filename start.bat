@@ -17,6 +17,7 @@ pause >nul
 
 start "FW-Python" python scripts\fireworks_reg.py --host 0.0.0.0 --port 5000
 start "OR-Python" python scripts\openrouter_reg.py --host 0.0.0.0 --port 5001
+start "NV-Python" python scripts\novita_reg.py --host 0.0.0.0 --port 5002
 
 timeout /t 3 /nobreak >nul
 
@@ -25,6 +26,7 @@ echo ========================================
 echo Turnstile Solver:   http://localhost:5072
 echo Fireworks Service:  http://localhost:5000
 echo OpenRouter Service: http://localhost:5001
+echo Novita Service:     http://localhost:5002
 echo Web UI:             http://127.0.0.1:8080
 echo Login:              admin / admin123
 echo ========================================
