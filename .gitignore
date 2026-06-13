@@ -48,3 +48,5 @@ results/
 # Logs
 *.log
 solver/.env
+grok403-fix-design.md
+scripts/*_test.py

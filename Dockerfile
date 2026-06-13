@@ -1,6 +1,6 @@
-# 一体化 Dockerfile — Grok + Fireworks + OpenRouter + Turnstile Solver
-# 构建: docker build -t grok-fireworks-openrouter:latest .
-# 运行: docker run -p 8080:8080 --name reg-server grok-fireworks-openrouter:latest
+# 一体化 Dockerfile — Grok + Fireworks + OpenRouter + Novita + Turnstile Solver
+# 构建: docker build -t regf-works:latest .
+# 运行: docker run -p 8080:8080 --name regf-works regf-works:latest
 
 # ========== 阶段 1: 编译 Go 二进制 ==========
 FROM golang:1.25-alpine AS builder
