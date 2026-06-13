@@ -73,8 +73,6 @@ async def solve_turnstile(solver_api: str, logf, proxy: str = "") -> Optional[st
     logf("[*] 提交 Turnstile 验证...")
 
     params = {"url": TURNSTILE_PAGE_URL, "sitekey": TURNSTILE_SITEKEY}
-    if proxy:
-        params["proxy"] = proxy
 
     async with httpx.AsyncClient(timeout=15) as client:
         try:
