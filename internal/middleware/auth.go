@@ -52,6 +52,11 @@ func AuthRequired() gin.HandlerFunc {
 			tokenStr, _ = c.Cookie("token")
 		}
 
+		// Query 参数作为最后 fallback（EventSource SSE 不支持自定义 header）
+		if tokenStr == "" {
+			tokenStr = c.Query("token")
+		}
+
 		if tokenStr == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
 			c.Abort()

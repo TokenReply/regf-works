@@ -507,7 +507,7 @@ async function doLogin(){
 }
 function doLogout(){tk='';localStorage.removeItem('tk');$('app').classList.remove('show');$('loginPage').style.display='flex';applyI18n()}
 async function chk(){try{const r=await api('GET','/api/auth/me');if(r.ok){enter((await r.json()).username);applyI18n()}else doLogout()}catch{doLogout()}}
-function enter(u){$('loginPage').style.display='none';$('app').classList.add('show');$('dispUser').textContent=u;applyI18n();loadResults();loadCfg();loadBlacklists()}
+function enter(u){$('loginPage').style.display='none';$('app').classList.add('show');$('dispUser').textContent=u;applyI18n();loadResults();loadCfg();loadBlacklists();checkActiveTasks()}
 
 async function loadResults(){
   try{
@@ -523,23 +523,78 @@ function toggleLog(){$('logDrawer').classList.toggle('open')}
 function addLog(t){const d=document.createElement('div');d.className='l '+(t.includes('[+]')||t.includes('[OK]')?'ok':t.includes('[-]')?'err':'info');d.textContent=t;$('logBody').appendChild(d);$('logBody').scrollTop=$('logBody').scrollHeight}
 
 /* Reg */
+let currentTaskId={};
 async function startReg(type){
   const count=parseInt($(type+'Count').value)||1,concurrency=parseInt($(type+'Concurrency').value)||1,prov=$(type+'Mail').value;
   const delayEl=$(type+'Delay');
   const delay=delayEl?parseInt(delayEl.value)||0:0;
   $(`btn-${type}-go`).classList.add('hide');$(`btn-${type}-stop`).classList.remove('hide');
   $('logDrawer').classList.add('open');addLog(`> Starting ${type} ×${count} (concurrency=${concurrency}${delay?', delay='+delay+'s':''})`);
-  AB[type]=new AbortController();let ok=0,fail=0;
+
   try{
-    const r=await fetch(`/api/${type}/register`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({count,concurrency,proxy:'',email_provider:prov,delay}),signal:AB[type].signal});
-    const rd=r.body.getReader(),dc=new TextDecoder();let buf='';
-    while(true){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});const ls=buf.split('\n');buf=ls.pop()||'';let ev='';
-      for(const l of ls){if(l.startsWith('event:'))ev=l.slice(6).trim();else if(l.startsWith('data:')){const d=l.slice(5).trim();if(ev==='log')addLog(d);else if(ev==='result'){const o=JSON.parse(d);R.unshift(o);o.ok?ok++:fail++;stats();render()}}}}
-    addLog(`> ${t('done')}: ${ok} ok, ${fail} fail`);toast(`${t('done')}: ${ok} ${t('success').toLowerCase()}`);
-  }catch(e){addLog(`> ${e.name==='AbortError'?'Aborted':e.message}`)}
-  finally{$(`btn-${type}-go`).classList.remove('hide');$(`btn-${type}-stop`).classList.add('hide')}
+    const submitR=await api('POST','/api/tasks',{platform:type,count,concurrency,delay,email_provider:prov});
+    if(!submitR.ok){const e=await submitR.json();addLog(`> Submit failed: ${e.error||'unknown'}`);$(`btn-${type}-go`).classList.remove('hide');$(`btn-${type}-stop`).classList.add('hide');return}
+    const taskData=await submitR.json();
+    addLog(`> Task ${taskData.id.slice(0,8)}... submitted`);
+    subscribeTask(type, taskData.id, 0);
+  }catch(e){
+    addLog(`> Error: ${e.message}`);
+    $(`btn-${type}-go`).classList.remove('hide');$(`btn-${type}-stop`).classList.add('hide');
+  }
 }
-function stopReg(t){if(AB[t])AB[t].abort()}
+function stopReg(type){
+  if(AB[type]){AB[type].abort();addLog('> Stopping...')}
+  $(`btn-${type}-go`).classList.remove('hide');$(`btn-${type}-stop`).classList.add('hide');
+}
+
+async function checkActiveTasks(){
+  try{
+    const r=await api('GET','/api/tasks');
+    if(!r.ok)return;
+    const tasks=await r.json();
+    const running=tasks.filter(t=>t.status==='running');
+    if(running.length>0){
+      $('logDrawer').classList.add('open');
+      addLog(`> Found ${running.length} running task(s), reconnecting...`);
+      for(const t of running){
+        addLog(`> Reconnecting to ${t.platform} task ${t.id.slice(0,8)}... (${t.progress.completed}/${t.progress.total})`);
+        subscribeTask(t.platform, t.id, t.progress.completed);
+      }
+    }
+  }catch(e){console.error('checkActiveTasks',e)}
+}
+
+function subscribeTask(platform, taskId, offset){
+  $(`btn-${platform}-go`).classList.add('hide');
+  $(`btn-${platform}-stop`).classList.remove('hide');
+  currentTaskId[platform]=taskId;
+  let ok=0,fail=0;
+
+  const evtSource=new EventSource(`/api/tasks/${taskId}/logs?offset=${offset||0}&token=${tk}`);
+  AB[platform]={abort:()=>{evtSource.close();fetch(`/api/tasks/${taskId}`,{method:'DELETE',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{})}};
+
+  evtSource.addEventListener('log',e=>{
+    const msg=e.data;
+    if(msg.startsWith('RESULT:')){
+      try{const o=JSON.parse(msg.slice(7));R.unshift(o);o.ok?ok++:fail++;stats();render();loadResults()}catch(ex){}
+    }else{addLog(msg)}
+  });
+  evtSource.addEventListener('progress',e=>{
+    try{const p=JSON.parse(e.data);addLog(`> Progress: ${p.completed}/${p.total} (${p.success} ok, ${p.failed} fail)`)}catch(ex){}
+  });
+  evtSource.addEventListener('done',e=>{
+    evtSource.close();
+    addLog(`> ${t('done')}: ${ok} ok, ${fail} fail`);
+    toast(`${t('done')}: ${ok} ${t('success').toLowerCase()}`);
+    $(`btn-${platform}-go`).classList.remove('hide');$(`btn-${platform}-stop`).classList.add('hide');
+    loadResults();
+  });
+  evtSource.onerror=()=>{
+    evtSource.close();
+    addLog('> Connection lost (task continues in background)');
+    $(`btn-${platform}-go`).classList.remove('hide');$(`btn-${platform}-stop`).classList.add('hide');
+  };
+}
 
 /* Results */
 function stats(){

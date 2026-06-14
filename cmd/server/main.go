@@ -19,6 +19,7 @@ import (
 	"github.com/grok-fireworks-reg/internal/handler"
 	"github.com/grok-fireworks-reg/internal/middleware"
 	"github.com/grok-fireworks-reg/internal/common"
+	"github.com/grok-fireworks-reg/internal/task"
 	"github.com/grok-fireworks-reg/web"
 )
 
@@ -57,6 +58,10 @@ func main() {
 	// 初始化结果存储
 	resultStorage := common.NewResultStorage("data/results.json")
 
+	// 初始化任务管理器
+	taskMgr := task.NewManager()
+	handler.RegisterWorkers(taskMgr, cfg, resultStorage)
+
 	// 注册处理器
 	authHandler := handler.NewAuthHandler(cfg)
 	grokHandler := handler.NewGrokHandler(cfg, resultStorage)
@@ -65,6 +70,7 @@ func main() {
 	novitaHandler := handler.NewNovitaHandler(cfg, resultStorage)
 	settingsHandler := handler.NewSettingsHandler(cfg)
 	resultsHandler := handler.NewResultsHandler(resultStorage)
+	tasksHandler := handler.NewTasksHandler(taskMgr)
 
 	// API 路由
 	api := r.Group("/api")
@@ -105,6 +111,13 @@ func main() {
 			protected.DELETE("/results", resultsHandler.ClearResults)
 			protected.DELETE("/results/batch", resultsHandler.DeleteBatch)
 			protected.DELETE("/results/filter", resultsHandler.DeleteByFilter)
+
+			// 后台任务管理
+			protected.POST("/tasks", tasksHandler.SubmitTask)
+			protected.GET("/tasks", tasksHandler.ListTasks)
+			protected.GET("/tasks/:id/logs", tasksHandler.GetTaskLogs)
+			protected.DELETE("/tasks/:id", tasksHandler.CancelTask)
+			protected.DELETE("/tasks/:id/record", tasksHandler.DeleteTask)
 
 			blacklist := protected.Group("/blacklist")
 			{
