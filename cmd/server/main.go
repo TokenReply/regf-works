@@ -121,14 +121,10 @@ func main() {
 
 			blacklist := protected.Group("/blacklist")
 			{
-				blacklist.GET("/grok", handler.GetGrokBlacklist)
-				blacklist.GET("/fireworks", handler.GetFireworksBlacklist)
-				blacklist.GET("/openrouter", handler.GetOpenRouterBlacklist)
-				blacklist.DELETE("/grok", handler.ClearGrokBlacklist)
-				blacklist.DELETE("/fireworks", handler.ClearFireworksBlacklist)
-				blacklist.DELETE("/openrouter", handler.ClearOpenRouterBlacklist)
-				blacklist.GET("/novita", handler.GetNovitaBlacklist)
-				blacklist.DELETE("/novita", handler.ClearNovitaBlacklist)
+				blacklist.GET("/:platform", handler.GetBlacklist)
+				blacklist.DELETE("/:platform", handler.ClearBlacklist)
+				blacklist.POST("/:platform", handler.AddBlacklist)
+				blacklist.POST("/:platform/remove", handler.RemoveBlacklistDomains)
 			}
 		}
 	}
