@@ -43,13 +43,15 @@ type gptMailGenerateResp struct {
 // gptMailEmailsResp 邮件列表响应
 type gptMailEmailsResp struct {
 	Success bool `json:"success"`
-	Data    []struct {
-		ID        string `json:"id"`
-		MessageID string `json:"messageId"`
-		From      string `json:"from"`
-		To        string `json:"to"`
-		Subject   string `json:"subject"`
-		Timestamp int64  `json:"timestamp"`
+	Data    struct {
+		Emails []struct {
+			ID           string `json:"id"`
+			EmailAddress string `json:"email_address"`
+			FromAddress  string `json:"from_address"`
+			Subject      string `json:"subject"`
+			Timestamp    int64  `json:"timestamp"`
+		} `json:"emails"`
+		Count int `json:"count"`
 	} `json:"data"`
 	Error string `json:"error,omitempty"`
 }
@@ -58,14 +60,14 @@ type gptMailEmailsResp struct {
 type gptMailEmailDetail struct {
 	Success bool `json:"success"`
 	Data    struct {
-		ID        string `json:"id"`
-		MessageID string `json:"messageId"`
-		From      string `json:"from"`
-		To        string `json:"to"`
-		Subject   string `json:"subject"`
-		Text      string `json:"text"`
-		HTML      string `json:"html"`
-		Timestamp int64  `json:"timestamp"`
+		ID           string `json:"id"`
+		EmailAddress string `json:"email_address"`
+		FromAddress  string `json:"from_address"`
+		Subject      string `json:"subject"`
+		Content      string `json:"content"`
+		HTMLContent  string `json:"html_content"`
+		HasHTML      bool   `json:"has_html"`
+		Timestamp    int64  `json:"timestamp"`
 	} `json:"data"`
 	Error string `json:"error,omitempty"`
 }
@@ -200,7 +202,7 @@ func (p *GPTMailProvider) FetchVerificationCode(ctx context.Context, addr string
 		}
 
 		var listResp gptMailEmailsResp
-		if err := json.Unmarshal(body, &listResp); err != nil || !listResp.Success || len(listResp.Data) == 0 {
+		if err := json.Unmarshal(body, &listResp); err != nil || !listResp.Success || len(listResp.Data.Emails) == 0 {
 			if attempt < maxAttempts {
 				select {
 				case <-ctx.Done():
@@ -213,14 +215,14 @@ func (p *GPTMailProvider) FetchVerificationCode(ctx context.Context, addr string
 		}
 
 		// 获取最新一封邮件详情
-		latestID := listResp.Data[0].ID
+		latestID := listResp.Data.Emails[0].ID
 		detail, err := p.getEmailDetail(ctx, baseURL, apiKey, latestID)
 		if err != nil {
 			continue
 		}
 
 		// 从邮件正文中提取验证码
-		code := ExtractVerificationCode(detail.Data.Subject, detail.Data.Text+" "+detail.Data.HTML)
+		code := ExtractVerificationCode(detail.Data.Subject, detail.Data.Content+" "+detail.Data.HTMLContent)
 		if code != "" {
 			return code, nil
 		}
