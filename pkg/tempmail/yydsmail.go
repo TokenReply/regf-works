@@ -288,7 +288,7 @@ func (p *YYDSMailProvider) FetchVerificationCode(ctx context.Context, addr strin
 			}
 
 			// 获取邮件详情（含 text/html body）
-			detailURL := fmt.Sprintf("%s/v1/messages/%s", p.baseURL, msg.ID)
+			detailURL := fmt.Sprintf("%s/v1/messages/%s?address=%s", p.baseURL, msg.ID, url.QueryEscape(addr))
 			detailBody, err := p.doRequest(ctx, "GET", detailURL, token, 1)
 			if err != nil {
 				continue

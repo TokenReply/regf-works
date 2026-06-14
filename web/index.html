@@ -365,26 +365,30 @@
 
         <div class="card">
           <div class="card-title" data-i="grokBlacklist">Grok 域名黑名单</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><input class="inp" id="grokBlInput" placeholder="domain1.com,domain2.com" style="flex:1"><button class="btn btn-outline btn-sm" onclick="addBlacklistDomains('grok')">+</button></div>
           <div id="grokBlacklistContent" style="max-height:200px;overflow-y:auto;color:var(--text-2);font-size:14px"></div>
-          <button class="btn btn-outline btn-sm" onclick="clearBlacklist('grok')" data-i="clearBlacklist" style="margin-top:12px">清空黑名单</button>
+          <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-danger btn-sm" onclick="removeSelectedBl('grok')" data-i="delSelected">删除选中</button><button class="btn btn-outline btn-sm" onclick="clearBlacklist('grok')" data-i="clearBlacklist">清空黑名单</button></div>
         </div>
 
         <div class="card">
           <div class="card-title" data-i="fireworksBlacklist">Fireworks 域名黑名单</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><input class="inp" id="fireworksBlInput" placeholder="domain1.com,domain2.com" style="flex:1"><button class="btn btn-outline btn-sm" onclick="addBlacklistDomains('fireworks')">+</button></div>
           <div id="fireworksBlacklistContent" style="max-height:200px;overflow-y:auto;color:var(--text-2);font-size:14px"></div>
-          <button class="btn btn-outline btn-sm" onclick="clearBlacklist('fireworks')" data-i="clearBlacklist" style="margin-top:12px">清空黑名单</button>
+          <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-danger btn-sm" onclick="removeSelectedBl('fireworks')" data-i="delSelected">删除选中</button><button class="btn btn-outline btn-sm" onclick="clearBlacklist('fireworks')" data-i="clearBlacklist">清空黑名单</button></div>
         </div>
 
         <div class="card">
           <div class="card-title" data-i="openrouterBlacklist">OpenRouter 域名黑名单</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><input class="inp" id="openrouterBlInput" placeholder="domain1.com,domain2.com" style="flex:1"><button class="btn btn-outline btn-sm" onclick="addBlacklistDomains('openrouter')">+</button></div>
           <div id="openrouterBlacklistContent" style="max-height:200px;overflow-y:auto;color:var(--text-2);font-size:14px"></div>
-          <button class="btn btn-outline btn-sm" onclick="clearBlacklist('openrouter')" data-i="clearBlacklist" style="margin-top:12px">清空黑名单</button>
+          <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-danger btn-sm" onclick="removeSelectedBl('openrouter')" data-i="delSelected">删除选中</button><button class="btn btn-outline btn-sm" onclick="clearBlacklist('openrouter')" data-i="clearBlacklist">清空黑名单</button></div>
         </div>
 
         <div class="card">
           <div class="card-title" data-i="novitaBlacklist">Novita 域名黑名单</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px"><input class="inp" id="novitaBlInput" placeholder="domain1.com,domain2.com" style="flex:1"><button class="btn btn-outline btn-sm" onclick="addBlacklistDomains('novita')">+</button></div>
           <div id="novitaBlacklistContent" style="max-height:200px;overflow-y:auto;color:var(--text-2);font-size:14px"></div>
-          <button class="btn btn-outline btn-sm" onclick="clearBlacklist('novita')" data-i="clearBlacklist" style="margin-top:12px">清空黑名单</button>
+          <div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-danger btn-sm" onclick="removeSelectedBl('novita')" data-i="delSelected">删除选中</button><button class="btn btn-outline btn-sm" onclick="clearBlacklist('novita')" data-i="clearBlacklist">清空黑名单</button></div>
         </div>
       </div>
 
@@ -728,16 +732,39 @@ async function loadBlacklists(){
 }
 function renderBlacklist(elId,domains){
   const el=$(elId);
+  const platform=elId.replace('BlacklistContent','');
   if(!domains||domains.length===0){el.innerHTML=`<span style="color:var(--text-3)">${t('noBanned')}</span>`;return}
-  let html='<div style="display:flex;flex-direction:column;gap:8px">';
+  let html='<div style="display:flex;flex-direction:column;gap:6px">';
   domains.forEach(d=>{
-    html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
-      <span style="font-family:var(--mono);font-size:13px;font-weight:500">${esc(d.domain)}</span>
-      <span style="font-size:12px;color:var(--text-3)">${d.ago} ${t('bannedAgo')}</span>
+    html+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+      <input type="checkbox" class="bl-chk-${platform}" value="${esc(d.domain)}">
+      <span style="font-family:var(--mono);font-size:13px;font-weight:500;flex:1">${esc(d.domain)}</span>
+      <span style="font-size:12px;color:var(--text-3);white-space:nowrap">${d.ago} ${t('bannedAgo')}</span>
+      <button class="btn btn-outline btn-sm" style="padding:2px 8px;font-size:11px" onclick="removeSingleBl('${platform}','${esc(d.domain)}')">x</button>
     </div>`;
   });
   html+='</div>';
   el.innerHTML=html;
+}
+async function addBlacklistDomains(platform){
+  const inp=$(platform+'BlInput');
+  const val=inp.value.trim();
+  if(!val)return;
+  await api('POST','/api/blacklist/'+platform,{domains:val});
+  inp.value='';
+  loadBlacklists();
+  toast('Added');
+}
+async function removeSingleBl(platform,domain){
+  await fetch('/api/blacklist/'+platform+'/remove',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({domains:[domain]})});
+  loadBlacklists();
+}
+async function removeSelectedBl(platform){
+  const checked=Array.from(document.querySelectorAll('.bl-chk-'+platform+':checked')).map(c=>c.value);
+  if(!checked.length)return toast(t('noData'));
+  await fetch('/api/blacklist/'+platform+'/remove',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({domains:checked})});
+  loadBlacklists();
+  toast(checked.length+' removed');
 }
 async function clearBlacklist(platform){
   await api('DELETE','/api/blacklist/'+platform);

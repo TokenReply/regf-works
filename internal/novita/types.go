@@ -11,15 +11,17 @@ type RegisterOpts struct {
 
 // ServiceRequest Python 服务请求体
 type ServiceRequest struct {
-	Email        string            `json:"email"`
-	Password     string            `json:"password,omitempty"`
-	Proxy        string            `json:"proxy,omitempty"`
-	SolverAPI    string            `json:"solver_api,omitempty"`
-	MailProvider string            `json:"mail_provider,omitempty"`
-	MailMeta     map[string]string `json:"mail_meta,omitempty"`
-	AhemBaseURL  string            `json:"ahem_base_url,omitempty"`
-	YYDSMailURL  string            `json:"yydsmail_url,omitempty"`
-	YYDSMailKey  string            `json:"yydsmail_key,omitempty"`
+	Email          string            `json:"email"`
+	Password       string            `json:"password,omitempty"`
+	Proxy          string            `json:"proxy,omitempty"`
+	SolverAPI      string            `json:"solver_api,omitempty"`
+	MailProvider   string            `json:"mail_provider,omitempty"`
+	MailMeta       map[string]string `json:"mail_meta,omitempty"`
+	AhemBaseURL    string            `json:"ahem_base_url,omitempty"`
+	YYDSMailURL    string            `json:"yydsmail_url,omitempty"`
+	YYDSMailKey    string            `json:"yydsmail_key,omitempty"`
+	GPTMailBaseURL string            `json:"gptmail_base_url,omitempty"`
+	GPTMailAPIKey  string            `json:"gptmail_api_key,omitempty"`
 }
 
 // ServiceResult Python 服务返回结果

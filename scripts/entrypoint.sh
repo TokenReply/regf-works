@@ -17,13 +17,20 @@ if [ ! -f /app/configs/config.yaml ]; then
   fi
 fi
 
-# 启动 Turnstile Solver（后台）
-# 线程数 / 端口 / 浏览器引擎可用环境变量覆盖（多开线程：调高 SOLVER_THREADS）
-SOLVER_THREADS="${SOLVER_THREADS:-4}"
-SOLVER_PORT="${SOLVER_PORT:-5072}"
-SOLVER_BROWSER="${SOLVER_BROWSER:-camoufox}"
-echo "[*] Starting Turnstile Solver on port ${SOLVER_PORT} (threads=${SOLVER_THREADS}, browser=${SOLVER_BROWSER})..."
-python3 /app/solver/api_solver.py --browser_type "${SOLVER_BROWSER}" --thread "${SOLVER_THREADS}" --port "${SOLVER_PORT}" &
+# 从配置文件计算 Solver 线程数（取所有平台 max_concurrent 的最大值，至少 2）
+if [ -f /app/configs/config.yaml ]; then
+  SOLVER_THREADS=$(grep 'max_concurrent' /app/configs/config.yaml | awk '{print $2}' | sort -rn | head -1)
+fi
+SOLVER_THREADS=${SOLVER_THREADS:-2}
+if [ "$SOLVER_THREADS" -lt 2 ] 2>/dev/null; then
+  SOLVER_THREADS=2
+fi
+# 环境变量覆盖
+if [ -n "${SOLVER_THREADS_OVERRIDE:-}" ]; then
+  SOLVER_THREADS=$SOLVER_THREADS_OVERRIDE
+fi
+echo "[*] Starting Turnstile Solver on port 5072 (threads=$SOLVER_THREADS)..."
+python3 /app/solver/api_solver.py --browser_type camoufox --thread $SOLVER_THREADS --port 5072 &
 SOLVER_PID=$!
 
 # 启动 Fireworks Python 服务（后台，端口 5000）

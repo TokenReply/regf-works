@@ -82,6 +82,34 @@ func (b *DomainBlacklist) IsBanned(domain string) bool {
 	return ok
 }
 
+// Unban 从黑名单移除单个域名
+func (b *DomainBlacklist) Unban(domain string) {
+	domain = normalizeDomain(domain)
+	if domain == "" {
+		return
+	}
+
+	b.mu.Lock()
+	delete(b.domains, domain)
+	b.mu.Unlock()
+
+	log.Info().Str("platform", b.platform).Str("domain", domain).Msg("域名已解除拉黑")
+	go b.save()
+}
+
+// UnbanMultiple 批量移除
+func (b *DomainBlacklist) UnbanMultiple(domains []string) {
+	b.mu.Lock()
+	for _, d := range domains {
+		d = normalizeDomain(d)
+		if d != "" {
+			delete(b.domains, d)
+		}
+	}
+	b.mu.Unlock()
+	go b.save()
+}
+
 // GetAll 获取所有黑名单条目（供 API 查询）
 func (b *DomainBlacklist) GetAll() map[string]time.Time {
 	b.mu.RLock()

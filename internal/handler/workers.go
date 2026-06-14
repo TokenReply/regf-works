@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -101,11 +102,13 @@ func runSequential(ctx context.Context, t *task.Task, cfg *config.Config, storag
 	platform string, workerCfg common.Config, regFn registerFunc) {
 
 	semaphore := make(chan struct{}, t.Concurrency)
+	var wg sync.WaitGroup
 
+loop:
 	for i := 0; i < t.Count; i++ {
 		select {
 		case <-ctx.Done():
-			return
+			break loop
 		default:
 		}
 
@@ -114,14 +117,16 @@ func runSequential(ctx context.Context, t *task.Task, cfg *config.Config, storag
 			t.LogWrite(fmt.Sprintf("[*] 等待 %d 秒后注册下一个...", t.Delay))
 			select {
 			case <-ctx.Done():
-				return
+				break loop
 			case <-time.After(time.Duration(t.Delay) * time.Second):
 			}
 		}
 
 		semaphore <- struct{}{}
+		wg.Add(1)
 
-		func(idx int) {
+		go func(idx int) {
+			defer wg.Done()
 			defer func() { <-semaphore }()
 
 			// 选择代理
@@ -166,7 +171,5 @@ func runSequential(ctx context.Context, t *task.Task, cfg *config.Config, storag
 	}
 
 	// 等待所有并发完成
-	for i := 0; i < t.Concurrency && i < t.Count; i++ {
-		semaphore <- struct{}{}
-	}
+	wg.Wait()
 }
