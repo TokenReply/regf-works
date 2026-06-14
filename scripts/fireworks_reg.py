@@ -900,6 +900,7 @@ async def _do_fireworks_register(
 from quart import Quart, jsonify, request
 
 app = Quart(__name__)
+app.config["RESPONSE_TIMEOUT"] = 600  # 10 分钟
 _fireworks_semaphore: asyncio.Semaphore = None  # type: ignore
 
 
