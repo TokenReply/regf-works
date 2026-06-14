@@ -66,24 +66,28 @@ func (h *TasksHandler) ListTasks(c *gin.Context) {
 	tasks := h.mgr.List()
 
 	type taskView struct {
-		ID         string        `json:"id"`
-		Platform   string        `json:"platform"`
-		Status     string        `json:"status"`
-		Count      int           `json:"count"`
-		Progress   task.Progress `json:"progress"`
-		CreatedAt  string        `json:"created_at"`
-		FinishedAt string        `json:"finished_at,omitempty"`
+		ID          string        `json:"id"`
+		Platform    string        `json:"platform"`
+		Status      string        `json:"status"`
+		Count       int           `json:"count"`
+		Concurrency int           `json:"concurrency"`
+		Delay       int           `json:"delay"`
+		Progress    task.Progress `json:"progress"`
+		CreatedAt   string        `json:"created_at"`
+		FinishedAt  string        `json:"finished_at,omitempty"`
 	}
 
 	views := make([]taskView, 0, len(tasks))
 	for _, t := range tasks {
 		v := taskView{
-			ID:        t.ID,
-			Platform:  t.Platform,
-			Status:    string(t.GetStatus()),
-			Count:     t.Count,
-			Progress:  t.GetProgress(),
-			CreatedAt: t.CreatedAt.Format("2006-01-02 15:04:05"),
+			ID:          t.ID,
+			Platform:    t.Platform,
+			Status:      string(t.GetStatus()),
+			Count:       t.Count,
+			Concurrency: t.Concurrency,
+			Delay:       t.Delay,
+			Progress:    t.GetProgress(),
+			CreatedAt:   t.CreatedAt.Format("2006-01-02 15:04:05"),
 		}
 		if t.FinishedAt != nil {
 			v.FinishedAt = t.FinishedAt.Format("2006-01-02 15:04:05")

@@ -558,7 +558,15 @@ async function checkActiveTasks(){
       addLog(`> Found ${running.length} running task(s), reconnecting...`);
       for(const t of running){
         addLog(`> Reconnecting to ${t.platform} task ${t.id.slice(0,8)}... (${t.progress.completed}/${t.progress.total})`);
-        subscribeTask(t.platform, t.id, t.progress.completed);
+        // 回填表单参数
+        tab(t.platform);
+        const countEl=$(t.platform+'Count');
+        const concEl=$(t.platform+'Concurrency');
+        const delayEl=$(t.platform+'Delay');
+        if(countEl)countEl.value=t.count;
+        if(concEl)concEl.value=t.concurrency;
+        if(delayEl)delayEl.value=t.delay||0;
+        subscribeTask(t.platform, t.id, 0);
       }
     }
   }catch(e){console.error('checkActiveTasks',e)}
