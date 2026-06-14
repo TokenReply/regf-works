@@ -14,10 +14,9 @@ echo.
 echo Press any key to continue...
 pause >nul
 
-echo [*] Starting Python services...
-start "FW-Python" /min python scripts\fireworks_reg.py --host 0.0.0.0 --port 5000
-start "OR-Python" /min python scripts\openrouter_reg.py --host 0.0.0.0 --port 5001
-start "NV-Python" /min python scripts\novita_reg.py --host 0.0.0.0 --port 5002
+start "FW-Python" cmd /k python scripts\fireworks_reg.py --host 0.0.0.0 --port 5000
+start "OR-Python" cmd /k python scripts\openrouter_reg.py --host 0.0.0.0 --port 5001
+start "NV-Python" cmd /k python scripts\novita_reg.py --host 0.0.0.0 --port 5002
 
 timeout /t 3 /nobreak >nul
 

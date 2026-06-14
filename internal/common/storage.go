@@ -43,13 +43,16 @@ func (s *ResultStorage) Load() error {
 func (s *ResultStorage) Save() error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.saveLocked()
+}
 
+// saveLocked 保存（调用方已持有锁）
+func (s *ResultStorage) saveLocked() error {
 	data, err := json.MarshalIndent(s.results, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	// 确保目录存在
 	dir := "data"
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
@@ -61,10 +64,10 @@ func (s *ResultStorage) Save() error {
 // Append 追加新结果并持久化
 func (s *ResultStorage) Append(result RegisterResult) error {
 	s.mu.Lock()
-	s.results = append([]RegisterResult{result}, s.results...) // 新结果插入开头
+	s.results = append([]RegisterResult{result}, s.results...)
+	err := s.saveLocked()
 	s.mu.Unlock()
-
-	return s.Save()
+	return err
 }
 
 // GetAll 获取所有结果
@@ -72,21 +75,20 @@ func (s *ResultStorage) GetAll() []RegisterResult {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// 返回副本，避免外部修改
-	copy := make([]RegisterResult, len(s.results))
+	cp := make([]RegisterResult, len(s.results))
 	for i, r := range s.results {
-		copy[i] = r
+		cp[i] = r
 	}
-	return copy
+	return cp
 }
 
 // Clear 清空所有结果
 func (s *ResultStorage) Clear() error {
 	s.mu.Lock()
 	s.results = []RegisterResult{}
+	err := s.saveLocked()
 	s.mu.Unlock()
-
-	return s.Save()
+	return err
 }
 
 // DeleteByIndices 删除指定索引的结果
@@ -94,7 +96,6 @@ func (s *ResultStorage) DeleteByIndices(indices []int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// 转为 map 快速查找
 	toDelete := make(map[int]bool)
 	for _, idx := range indices {
 		if idx >= 0 && idx < len(s.results) {
@@ -102,7 +103,6 @@ func (s *ResultStorage) DeleteByIndices(indices []int) error {
 		}
 	}
 
-	// 过滤
 	filtered := []RegisterResult{}
 	for i, r := range s.results {
 		if !toDelete[i] {
@@ -111,7 +111,7 @@ func (s *ResultStorage) DeleteByIndices(indices []int) error {
 	}
 	s.results = filtered
 
-	return s.Save()
+	return s.saveLocked()
 }
 
 // DeleteByFilter 删除符合筛选条件的结果
@@ -134,5 +134,5 @@ func (s *ResultStorage) DeleteByFilter(platform, status string) error {
 	}
 	s.results = filtered
 
-	return s.Save()
+	return s.saveLocked()
 }
