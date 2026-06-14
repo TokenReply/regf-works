@@ -52,13 +52,16 @@ NOVITA_HEADERS = {
     ),
 }
 
-# 问卷随机数据
-ROLES = ["developer", "data-scientist", "researcher", "student", "product-manager"]
-SPENDS = ["0-100", "100-500", "500-1000"]
-FIRST_NAMES = ["Alex", "Sam", "Jordan", "Morgan", "Casey", "Riley", "Quinn", "Avery"]
-LAST_NAMES = ["Chen", "Wang", "Li", "Zhang", "Liu", "Yang", "Huang", "Wu", "Zhou", "Lin"]
-COMPANIES = ["TechFlow AI", "DataVerse", "CloudMind", "NeuralHub", "AIForge", "DeepCore",
-             "QuantumAI", "SynthLab", "CogniTech", "ByteWave"]
+# 问卷随机数据（大公司+大额度，提高获得额度的概率）
+ROLES = ["developer", "researcher", "engineering-manager", "data-scientist"]
+SPENDS = ["1000-10000", "10000-50000", "50000+"]
+FIRST_NAMES = ["James", "Robert", "Michael", "David", "William", "Richard", "Joseph", "Thomas",
+               "Daniel", "Matthew", "Andrew", "Christopher", "Brian", "Steven", "Kevin", "Mark"]
+LAST_NAMES = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Davis", "Miller", "Wilson",
+              "Anderson", "Taylor", "Thomas", "Jackson", "White", "Harris", "Martin", "Lee"]
+COMPANIES = ["Google", "Microsoft", "Amazon", "Meta", "Apple", "NVIDIA", "OpenAI", "Anthropic",
+             "Tesla", "Netflix", "Salesforce", "Adobe", "Intel", "IBM", "Oracle", "Uber",
+             "Stripe", "Databricks", "Snowflake", "Palantir"]
 
 # ─── Quart App ────────────────────────────────────────────────────────────
 app = Quart(__name__)
