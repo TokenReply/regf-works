@@ -104,10 +104,11 @@ func runSequential(ctx context.Context, t *task.Task, cfg *config.Config, storag
 	semaphore := make(chan struct{}, t.Concurrency)
 	var wg sync.WaitGroup
 
+loop:
 	for i := 0; i < t.Count; i++ {
 		select {
 		case <-ctx.Done():
-			break
+			break loop
 		default:
 		}
 
@@ -116,7 +117,7 @@ func runSequential(ctx context.Context, t *task.Task, cfg *config.Config, storag
 			t.LogWrite(fmt.Sprintf("[*] 等待 %d 秒后注册下一个...", t.Delay))
 			select {
 			case <-ctx.Done():
-				break
+				break loop
 			case <-time.After(time.Duration(t.Delay) * time.Second):
 			}
 		}
