@@ -451,8 +451,9 @@ async def _poll_yydsmail_activation(
                     d = detail.get("data", detail) if isinstance(detail, dict) else {}
                     html = ""
                     if isinstance(d, dict):
-                        html = d.get("html") or d.get("text") or d.get("content") or d.get("body") or ""
-                    token = _extract_novita_token(html or "")
+                        for k in ("html", "text", "content", "body"):
+                            html += " " + _flatten_mail_field(d.get(k))
+                    token = _extract_novita_token(html)
                     if token:
                         logf("[+] 激活 token 已获取 (yydsmail)")
                         return token
@@ -505,12 +506,12 @@ async def _poll_duckmail_activation(email: str, mail_meta: dict, logf) -> Option
                 subject = (msg.get("subject") or "")
                 if "confirm" in subject.lower() or "novita" in subject.lower() or "verify" in subject.lower():
                     detail = _get(f"{base}/messages/{urllib.parse.quote(str(msg.get('id', '')))}")
+                    d2 = detail.get("data", detail) if isinstance(detail, dict) else {}
                     html = ""
-                    if isinstance(detail, dict):
-                        html = detail.get("html") or detail.get("text") or detail.get("content") or ""
-                    if isinstance(html, list):
-                        html = " ".join(str(x) for x in html)
-                    token2 = _extract_novita_token(html or "")
+                    if isinstance(d2, dict):
+                        for k in ("html", "text", "content", "body"):
+                            html += " " + _flatten_mail_field(d2.get(k))
+                    token2 = _extract_novita_token(html)
                     if token2:
                         logf("[+] 激活 token 已获取 (duckmail)")
                         return token2
@@ -542,6 +543,19 @@ async def _poll_outlook_activation(email: str, mail_meta: dict, logf) -> Optiona
         return val
     logf("[-] 激活邮件超时 (outlook)")
     return None
+
+
+def _flatten_mail_field(v) -> str:
+    """邮件正文字段可能是 str / list / dict（不同邮箱 API 格式），统一拍平成字符串。"""
+    if v is None:
+        return ""
+    if isinstance(v, str):
+        return v
+    if isinstance(v, list):
+        return " ".join(_flatten_mail_field(x) for x in v)
+    if isinstance(v, dict):
+        return " ".join(_flatten_mail_field(x) for x in v.values())
+    return str(v)
 
 
 def _extract_novita_token(html: str) -> Optional[str]:

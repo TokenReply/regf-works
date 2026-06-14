@@ -28,6 +28,11 @@ import urllib.request
 from threading import Event
 from typing import Optional
 
+try:
+    from outlook_mail import poll_outlook_extract  # Outlook 账号池 IMAP XOAUTH2
+except Exception:
+    poll_outlook_extract = None
+
 # ─── 代理链支持 ─────────────────────────────────────────────────────────────
 try:
     from proxy_chain import chain_proxy
@@ -318,6 +323,99 @@ def _poll_ahem(base_url: str, email: str, meta: dict,
         else:
             time.sleep(3)
     return None
+
+
+# ─── DuckMail 轮询 ───────────────────────────────────────────────────────────
+def _poll_duckmail(email: str, meta: dict,
+                   timeout: int = 180,
+                   log_q: Optional[queue.Queue] = None,
+                   cancel: Optional[Event] = None,
+                   extractor=None,
+                   progress_label: str = "确认链接") -> Optional[str]:
+    """轮询 DuckMail（meta 由 Go 端 duckmail.go 创建邮箱时给出 token/base_url），用 extractor 提取。"""
+    token = meta.get("token", "")
+    base = (meta.get("base_url") or "https://api.duckmail.sbs").rstrip("/")
+    if not token:
+        logger.warning("[%s] duckmail: 缺少 token", email)
+        return None
+    _extractor = extractor or (lambda t: t if t else None)
+    start = time.time()
+    attempt = 0
+    consecutive_errors = 0
+    while time.time() - start < timeout:
+        if cancel is not None and cancel.is_set():
+            return None
+        attempt += 1
+        if log_q is not None and attempt % 5 == 1 and attempt > 1:
+            log_q.put(f"等待{progress_label} (duckmail)... ({int(time.time()-start)}s / {timeout}s)")
+        try:
+            req = urllib.request.Request(f"{base}/messages")
+            req.add_header("Authorization", f"Bearer {token}")
+            req.add_header("Accept", "application/json")
+            req.add_header("User-Agent", "Mozilla/5.0 (compatible; RegPlatform/1.0)")
+            with urllib.request.urlopen(req, timeout=10, context=_SSL_CTX) as resp:
+                data = json.loads(resp.read())
+            members = data.get("hydra:member") or data.get("member") or data.get("messages") or [] \
+                if isinstance(data, dict) else (data or [])
+            consecutive_errors = 0
+            for msg in members:
+                code = _extractor(msg.get("subject", "") or "")
+                if code:
+                    return code
+                msg_id = msg.get("id", "")
+                if not msg_id:
+                    continue
+                try:
+                    dreq = urllib.request.Request(f"{base}/messages/{urllib.parse.quote(str(msg_id), safe='')}")
+                    dreq.add_header("Authorization", f"Bearer {token}")
+                    dreq.add_header("Accept", "application/json")
+                    dreq.add_header("User-Agent", "Mozilla/5.0 (compatible; RegPlatform/1.0)")
+                    with urllib.request.urlopen(dreq, timeout=10, context=_SSL_CTX) as dresp:
+                        detail = json.loads(dresp.read())
+                    for field in ("text", "html", "content", "body"):
+                        for text in _iter_text_chunks(detail.get(field, "")):
+                            code = _extractor(text)
+                            if code:
+                                return code
+                except Exception as e:
+                    logger.debug("[%s] duckmail 详情获取失败(id=%s): %s", email, msg_id, e)
+        except urllib.error.HTTPError as exc:
+            logger.warning("[%s] duckmail HTTP %s (第%d次)", email, exc.code, attempt)
+            consecutive_errors += 1
+            if consecutive_errors >= 3:
+                return None
+        except Exception as exc:
+            logger.warning("[%s] duckmail 轮询出错(第%d次): %s", email, attempt, exc)
+            consecutive_errors += 1
+            if consecutive_errors >= 5:
+                return None
+        if cancel is not None:
+            if cancel.wait(2):
+                return None
+        else:
+            time.sleep(2)
+    return None
+
+
+# ─── Outlook 轮询（复用 outlook_mail IMAP XOAUTH2，套 fireworks 自己的 extractor） ──
+def _poll_outlook_fw(email: str, meta: dict,
+                     timeout: int = 180,
+                     log_q: Optional[queue.Queue] = None,
+                     cancel: Optional[Event] = None,
+                     extractor=None,
+                     progress_label: str = "确认链接") -> Optional[str]:
+    if poll_outlook_extract is None:
+        logger.warning("[%s] outlook_mail 模块不可用", email)
+        return None
+    cid = meta.get("client_id", "")
+    rt = meta.get("refresh_token", "")
+    if not cid or not rt:
+        logger.warning("[%s] outlook: meta 缺 client_id/refresh_token", email)
+        return None
+    if log_q is not None:
+        log_q.put(f"轮询 Outlook 收件箱 (IMAP)... {progress_label}")
+    _extractor = extractor or (lambda t: t if t else None)
+    return poll_outlook_extract(email, cid, rt, _extractor, timeout=timeout, senders=None, cancel=cancel)
 
 
 # ─── Fireworks 辅助函数 ──────────────────────────────────────────────────────
@@ -693,6 +791,22 @@ async def _do_fireworks_register(
             code = await asyncio.to_thread(
                 _poll_ahem,
                 ahem_base_url, email, mail_meta or {},
+                timeout=max(_MAIL_TIMEOUT, 180),
+                log_q=log_q, cancel=cancel,
+                extractor=_fw_extractor, progress_label="确认链接",
+            )
+        elif mail_provider == "duckmail":
+            code = await asyncio.to_thread(
+                _poll_duckmail,
+                email, mail_meta or {},
+                timeout=max(_MAIL_TIMEOUT, 180),
+                log_q=log_q, cancel=cancel,
+                extractor=_fw_extractor, progress_label="确认链接",
+            )
+        elif mail_provider == "outlook":
+            code = await asyncio.to_thread(
+                _poll_outlook_fw,
+                email, mail_meta or {},
                 timeout=max(_MAIL_TIMEOUT, 180),
                 log_q=log_q, cancel=cancel,
                 extractor=_fw_extractor, progress_label="确认链接",

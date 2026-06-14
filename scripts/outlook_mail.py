@@ -87,17 +87,20 @@ def _extract(body: str, mode: str):
     return ("code", m.group(1)) if m else (None, None)
 
 
-def poll_outlook(email_addr: str, client_id: str, refresh_token: str,
-                 mode: str = "code", timeout: int = 180, senders=None):
-    """阻塞式轮询 outlook INBOX/Junk。返回 (kind, value) 或 (None, None)。
+def _poll_loop(email_addr: str, client_id: str, refresh_token: str, on_body,
+               timeout: int = 180, senders=None, cancel=None):
+    """轮询 outlook INBOX/Junk，对每封新邮件正文调用 on_body(body)；返回首个 on_body 非空结果，否则 None。
 
-    senders: 可选关键字列表，命中发件人或正文才算目标邮件（None 表示不过滤，取最新匹配 mode 的）。
+    senders: 可选关键字列表，命中发件人或正文才算目标邮件（None 不过滤）。
+    cancel: 可选，带 is_set() 的对象，置位则提前返回。
     """
     deadline = time.time() + timeout
     access = None
     seen = set()
     senders = [s.lower() for s in (senders or [])]
     while time.time() < deadline:
+        if cancel is not None and getattr(cancel, "is_set", lambda: False)():
+            return None
         try:
             if access is None:
                 access = outlook_access_token(client_id, refresh_token)
@@ -125,13 +128,13 @@ def poll_outlook(email_addr: str, client_id: str, refresh_token: str,
                             low = (frm + " " + body).lower()
                             if not any(k in low for k in senders):
                                 continue
-                        kind, val = _extract(body, mode)
-                        if val:
+                        res = on_body(body)
+                        if res:
                             try:
                                 imap.logout()
                             except Exception:
                                 pass
-                            return (kind, val)
+                            return res
                 except Exception:
                     pass
             try:
@@ -141,7 +144,31 @@ def poll_outlook(email_addr: str, client_id: str, refresh_token: str,
         except Exception:
             access = None  # token 可能过期，下轮重刷
         time.sleep(5)
+    return None
+
+
+def poll_outlook(email_addr: str, client_id: str, refresh_token: str,
+                 mode: str = "code", timeout: int = 180, senders=None):
+    """按 mode 提取，返回 (kind, value) 或 (None, None)。"""
+    holder = {}
+
+    def on_body(body):
+        kind, val = _extract(body, mode)
+        if val:
+            holder["kind"] = kind
+            return val
+        return None
+
+    val = _poll_loop(email_addr, client_id, refresh_token, on_body, timeout, senders)
+    if val:
+        return (holder.get("kind", mode), val)
     return (None, None)
+
+
+def poll_outlook_extract(email_addr: str, client_id: str, refresh_token: str, extractor,
+                         timeout: int = 180, senders=None, cancel=None):
+    """用调用方的 extractor(body)->Optional[str] 提取（供 fireworks/openrouter 复用各自的提取器）。"""
+    return _poll_loop(email_addr, client_id, refresh_token, extractor, timeout, senders, cancel)
 
 
 async def poll_outlook_async(*args, **kwargs):
