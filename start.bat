@@ -21,6 +21,11 @@ start "NV-Python" python scripts\novita_reg.py --host 0.0.0.0 --port 5002
 
 timeout /t 3 /nobreak >nul
 
+REM 设置代理环境变量（让 Go 服务走 Clash）
+set HTTP_PROXY=http://127.0.0.1:7890
+set HTTPS_PROXY=http://127.0.0.1:7890
+set NO_PROXY=127.0.0.1,localhost
+
 echo.
 echo ========================================
 echo Turnstile Solver:   http://localhost:5072
