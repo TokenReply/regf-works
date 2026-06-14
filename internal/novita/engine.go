@@ -83,14 +83,16 @@ func Register(ctx context.Context, opts RegisterOpts) *common.RegisterResult {
 	}
 
 	reqBody := ServiceRequest{
-		Email:        email,
-		Proxy:        proxyStr,
-		SolverAPI:    common.SettingOrDefault(opts.Config, "novita_solver_api", "http://127.0.0.1:5072"),
-		MailProvider: meta["provider"],
-		MailMeta:     meta,
-		AhemBaseURL:  common.SettingOrDefault(opts.Config, "ahem_base_url", ""),
-		YYDSMailURL:  common.SettingOrDefault(opts.Config, "yydsmail_base_url", ""),
-		YYDSMailKey:  common.SettingOrDefault(opts.Config, "yydsmail_api_key", ""),
+		Email:          email,
+		Proxy:          proxyStr,
+		SolverAPI:      common.SettingOrDefault(opts.Config, "novita_solver_api", "http://127.0.0.1:5072"),
+		MailProvider:   meta["provider"],
+		MailMeta:       meta,
+		AhemBaseURL:    common.SettingOrDefault(opts.Config, "ahem_base_url", ""),
+		YYDSMailURL:    common.SettingOrDefault(opts.Config, "yydsmail_base_url", ""),
+		YYDSMailKey:    common.SettingOrDefault(opts.Config, "yydsmail_api_key", ""),
+		GPTMailBaseURL: common.SettingOrDefault(opts.Config, "gptmail_base_url", "https://mail.chatgpt.org.uk"),
+		GPTMailAPIKey:  common.SettingOrDefault(opts.Config, "gptmail_api_key", ""),
 	}
 
 	bodyBytes, err := json.Marshal(reqBody)

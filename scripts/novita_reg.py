@@ -153,6 +153,8 @@ async def _do_novita_register(
     ahem_base_url: str,
     yydsmail_url: str,
     yydsmail_key: str,
+    gptmail_base_url: str,
+    gptmail_api_key: str,
     log_q: queue.Queue,
     cancel: Event,
 ) -> dict:
@@ -225,7 +227,8 @@ async def _do_novita_register(
         logf("[*] 等待激活邮件...")
         activate_token = await _wait_for_activation_email(
             email, mail_provider, mail_meta, ahem_base_url,
-            yydsmail_url, yydsmail_key, logf
+            yydsmail_url, yydsmail_key,
+            gptmail_base_url, gptmail_api_key, logf
         )
         if not activate_token:
             result["error"] = "获取激活邮件失败"
@@ -350,7 +353,8 @@ async def _do_novita_register(
 
 async def _wait_for_activation_email(
     email: str, mail_provider: str, mail_meta: dict,
-    ahem_base_url: str, yydsmail_url: str, yydsmail_key: str, logf
+    ahem_base_url: str, yydsmail_url: str, yydsmail_key: str,
+    gptmail_base_url: str, gptmail_api_key: str, logf
 ) -> Optional[str]:
     """从邮箱中获取激活 token（支持 AHEM / YYDS / GPTMail）"""
 
@@ -358,9 +362,8 @@ async def _wait_for_activation_email(
         return await _poll_ahem_activation(email, ahem_base_url, logf)
     elif mail_provider in ("yydsmail", "yyds"):
         return await _poll_yydsmail_activation(email, yydsmail_url, yydsmail_key, mail_meta, logf)
-    elif mail_provider in ("gptmail", "moemail"):
-        # GPTMail/MoeMail 都走通用 AHEM 兼容接口
-        return await _poll_ahem_activation(email, ahem_base_url, logf)
+    elif mail_provider == "gptmail":
+        return await _poll_gptmail_activation(email, gptmail_base_url, gptmail_api_key, logf)
     else:
         # 默认尝试 AHEM
         if ahem_base_url:
@@ -459,6 +462,63 @@ async def _poll_yydsmail_activation(
     return None
 
 
+async def _poll_gptmail_activation(email: str, base_url: str, api_key: str, logf) -> Optional[str]:
+    """从 GPTMail 提取 Novita 激活 token"""
+    if not base_url:
+        base_url = "https://mail.chatgpt.org.uk"
+    if not api_key:
+        logf("[-] 无 GPTMail API Key")
+        return None
+
+    base_url = base_url.rstrip("/")
+
+    for attempt in range(15):
+        await asyncio.sleep(2)
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.get(
+                    f"{base_url}/api/emails",
+                    params={"email": email},
+                    headers={"X-API-Key": api_key},
+                )
+                if r.status_code != 200:
+                    if attempt % 3 == 0:
+                        logf(f"[*] gptmail HTTP {r.status_code}, 重试中...")
+                    continue
+                data = r.json()
+                if not data.get("success"):
+                    continue
+                emails = data.get("data", {}).get("emails", [])
+                if not emails:
+                    if attempt % 3 == 0:
+                        logf(f"[*] 等待激活邮件 (gptmail)... ({attempt * 2}s)")
+                    continue
+
+                for mail in emails:
+                    subject = mail.get("subject", "")
+                    if "confirm" in subject.lower() or "novita" in subject.lower() or "activation" in subject.lower():
+                        mail_id = mail.get("id", "")
+                        if not mail_id:
+                            continue
+                        r2 = await client.get(
+                            f"{base_url}/api/email/{mail_id}",
+                            headers={"X-API-Key": api_key},
+                        )
+                        if r2.status_code != 200:
+                            continue
+                        detail = r2.json().get("data", {})
+                        html = detail.get("html_content", "") or detail.get("content", "")
+                        token = _extract_novita_token(html)
+                        if token:
+                            logf("[+] 激活 token 已获取 (gptmail)")
+                            return token
+        except Exception as e:
+            if attempt % 3 == 0:
+                logf(f"[*] gptmail 出错: {e}, 重试中...")
+    logf("[-] 激活邮件超时 (30s)")
+    return None
+
+
 def _extract_novita_token(html: str) -> Optional[str]:
     """从邮件 HTML 中提取 Novita 激活 token"""
     match = re.search(r'token=([A-Za-z0-9_-]+)', html)
@@ -496,6 +556,8 @@ async def novita_register():
     ahem_base_url = data.get("ahem_base_url", "")
     yydsmail_url = data.get("yydsmail_url", "")
     yydsmail_key = data.get("yydsmail_key", "")
+    gptmail_base_url = data.get("gptmail_base_url", "")
+    gptmail_api_key = data.get("gptmail_api_key", "")
 
     logger.info("收到 novita 注册请求: %s solver=%s", email, solver_api)
 
@@ -515,6 +577,8 @@ async def novita_register():
                     ahem_base_url=ahem_base_url,
                     yydsmail_url=yydsmail_url,
                     yydsmail_key=yydsmail_key,
+                    gptmail_base_url=gptmail_base_url,
+                    gptmail_api_key=gptmail_api_key,
                     log_q=log_q,
                     cancel=cancel_event,
                 )
