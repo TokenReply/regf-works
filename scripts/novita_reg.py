@@ -31,6 +31,11 @@ from typing import Optional
 import httpx
 from quart import Quart, request, jsonify
 
+try:
+    from outlook_mail import poll_outlook_async  # Outlook 账号池 IMAP XOAUTH2 收件
+except Exception:  # pragma: no cover
+    poll_outlook_async = None
+
 # ─── 日志 ─────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("novita-reg")
@@ -338,6 +343,10 @@ async def _wait_for_activation_email(
         return await _poll_ahem_activation(email, ahem_base_url, logf)
     elif mail_provider in ("yydsmail", "yyds"):
         return await _poll_yydsmail_activation(email, yydsmail_url, yydsmail_key, mail_meta, logf)
+    elif mail_provider == "duckmail":
+        return await _poll_duckmail_activation(email, mail_meta, logf)
+    elif mail_provider == "outlook":
+        return await _poll_outlook_activation(email, mail_meta, logf)
     elif mail_provider in ("gptmail", "moemail"):
         # GPTMail/MoeMail 都走通用 AHEM 兼容接口
         return await _poll_ahem_activation(email, ahem_base_url, logf)
@@ -389,53 +398,149 @@ async def _poll_ahem_activation(email: str, ahem_base_url: str, logf) -> Optiona
 async def _poll_yydsmail_activation(
     email: str, yydsmail_url: str, yydsmail_key: str, mail_meta: dict, logf
 ) -> Optional[str]:
-    """从 YYDS Mail 提取 Novita 激活 token"""
-    if not yydsmail_url or not yydsmail_key:
-        logf("[-] 无 YYDS Mail 配置")
+    """从 YYDS Mail 提取 Novita 激活 token
+
+    对齐 Go 端 yydsmail.go 的真实 API（之前用 /api/emails + API key 当 Bearer 导致 403）：
+      GET {base}/v1/messages?address=<email>   Bearer=<创建邮箱时的 per-inbox token>
+      GET {base}/v1/messages/{id}              Bearer=<同上>
+    base 统一收敛到根域名（配置里可能带 /v1），收件凭证优先用 meta['token']。
+    """
+    # per-inbox token 优先；缺失再退回 API key（多数情况下 API key 对 messages 无权 → 403）
+    token_header = mail_meta.get("token") or mail_meta.get("yydsmail_token") or yydsmail_key
+    if not token_header:
+        logf("[-] 无 YYDS Mail token/key")
         return None
 
     _ssl_ctx = ssl.create_default_context()
     _ssl_ctx.check_hostname = False
     _ssl_ctx.verify_mode = ssl.CERT_NONE
 
-    base_url = yydsmail_url.rstrip("/")
+    base_url = (yydsmail_url or "https://maliapi.215.im").strip().rstrip("/")
+    if base_url.endswith("/v1"):
+        base_url = base_url[:-3].rstrip("/")
     if not base_url.startswith("http"):
         base_url = "https://" + base_url
-    token_header = mail_meta.get("yydsmail_token", yydsmail_key)
 
+    def _get(url):
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Bearer {token_header}",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; RegPlatform/1.0)",
+        })
+        with urllib.request.urlopen(req, context=_ssl_ctx, timeout=10) as resp:
+            return json.loads(resp.read())
+
+    list_url = f"{base_url}/v1/messages?address={urllib.parse.quote(email)}"
     for attempt in range(15):
         await asyncio.sleep(2)
         try:
-            req = urllib.request.Request(
-                f"{base_url}/api/emails?mailbox={urllib.parse.quote(email)}",
-                headers={"Authorization": f"Bearer {token_header}", "Accept": "application/json"}
-            )
-            with urllib.request.urlopen(req, context=_ssl_ctx, timeout=10) as resp:
-                data = json.loads(resp.read())
-                messages = data if isinstance(data, list) else data.get("messages", [])
-                if not messages:
-                    if attempt % 3 == 0:
-                        logf(f"[*] 等待激活邮件 (yydsmail)... ({attempt * 2}s)")
-                    continue
-                for msg in messages:
-                    subject = msg.get("subject", "")
-                    if "confirm" in subject.lower() or "novita" in subject.lower():
-                        msg_id = msg.get("id", "")
-                        detail_req = urllib.request.Request(
-                            f"{base_url}/api/email/{urllib.parse.quote(msg_id)}",
-                            headers={"Authorization": f"Bearer {token_header}", "Accept": "application/json"}
-                        )
-                        with urllib.request.urlopen(detail_req, context=_ssl_ctx, timeout=10) as dresp:
-                            detail = json.loads(dresp.read())
-                            html = detail.get("html", detail.get("text", ""))
-                            token = _extract_novita_token(html)
-                            if token:
-                                logf("[+] 激活 token 已获取 (yydsmail)")
-                                return token
+            data = _get(list_url)
+            if isinstance(data, dict):
+                messages = (data.get("data") or {}).get("messages") or data.get("messages") or []
+            else:
+                messages = data or []
+            if not messages:
+                if attempt % 3 == 0:
+                    logf(f"[*] 等待激活邮件 (yydsmail)... ({attempt * 2}s)")
+                continue
+            for msg in messages:
+                subject = (msg.get("subject") or "")
+                if "confirm" in subject.lower() or "novita" in subject.lower() or "verify" in subject.lower():
+                    msg_id = msg.get("id", "")
+                    detail = _get(f"{base_url}/v1/messages/{urllib.parse.quote(str(msg_id))}")
+                    d = detail.get("data", detail) if isinstance(detail, dict) else {}
+                    html = ""
+                    if isinstance(d, dict):
+                        html = d.get("html") or d.get("text") or d.get("content") or d.get("body") or ""
+                    token = _extract_novita_token(html or "")
+                    if token:
+                        logf("[+] 激活 token 已获取 (yydsmail)")
+                        return token
         except Exception as e:
             if attempt % 3 == 0:
                 logf(f"[*] yydsmail 出错: {e}, 重试中...")
     logf("[-] 激活邮件超时 (30s)")
+    return None
+
+
+async def _poll_duckmail_activation(email: str, mail_meta: dict, logf) -> Optional[str]:
+    """从 DuckMail 提取 Novita 激活 token
+
+    DuckMail API（meta 由 Go 端 duckmail.go 创建邮箱时给出 token/base_url）：
+      GET {base}/messages         Bearer=<token>  → {"hydra:member":[{id,subject}]}
+      GET {base}/messages/{id}    Bearer=<token>  → {text/html}
+    """
+    token = mail_meta.get("token")
+    base = (mail_meta.get("base_url") or "https://api.duckmail.sbs").strip().rstrip("/")
+    if not token:
+        logf("[-] 无 DuckMail token")
+        return None
+
+    _ssl_ctx = ssl.create_default_context()
+    _ssl_ctx.check_hostname = False
+    _ssl_ctx.verify_mode = ssl.CERT_NONE
+
+    def _get(url):
+        req = urllib.request.Request(url, headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; RegPlatform/1.0)",
+        })
+        with urllib.request.urlopen(req, context=_ssl_ctx, timeout=10) as resp:
+            return json.loads(resp.read())
+
+    for attempt in range(15):
+        await asyncio.sleep(2)
+        try:
+            data = _get(f"{base}/messages")
+            if isinstance(data, dict):
+                members = data.get("hydra:member") or data.get("member") or data.get("messages") or []
+            else:
+                members = data or []
+            if not members:
+                if attempt % 3 == 0:
+                    logf(f"[*] 等待激活邮件 (duckmail)... ({attempt * 2}s)")
+                continue
+            for msg in members:
+                subject = (msg.get("subject") or "")
+                if "confirm" in subject.lower() or "novita" in subject.lower() or "verify" in subject.lower():
+                    detail = _get(f"{base}/messages/{urllib.parse.quote(str(msg.get('id', '')))}")
+                    html = ""
+                    if isinstance(detail, dict):
+                        html = detail.get("html") or detail.get("text") or detail.get("content") or ""
+                    if isinstance(html, list):
+                        html = " ".join(str(x) for x in html)
+                    token2 = _extract_novita_token(html or "")
+                    if token2:
+                        logf("[+] 激活 token 已获取 (duckmail)")
+                        return token2
+        except Exception as e:
+            if attempt % 3 == 0:
+                logf(f"[*] duckmail 出错: {e}, 重试中...")
+    logf("[-] 激活邮件超时 (30s)")
+    return None
+
+
+async def _poll_outlook_activation(email: str, mail_meta: dict, logf) -> Optional[str]:
+    """从 Outlook 账号池邮箱提取 Novita 激活 token（IMAP XOAUTH2，复用 outlook_mail）"""
+    if poll_outlook_async is None:
+        logf("[-] outlook_mail 模块不可用")
+        return None
+    cid = mail_meta.get("client_id", "")
+    rt = mail_meta.get("refresh_token", "")
+    if not cid or not rt:
+        logf("[-] outlook meta 缺 client_id/refresh_token")
+        return None
+    logf("[*] 轮询 Outlook 收件箱 (IMAP)...")
+    try:
+        kind, val = await poll_outlook_async(email, cid, rt, "novita_token", 180, ["novita"])
+    except Exception as e:
+        logf(f"[-] outlook 收件出错: {e}")
+        return None
+    if val:
+        logf("[+] 激活 token 已获取 (outlook)")
+        return val
+    logf("[-] 激活邮件超时 (outlook)")
     return None
 
 

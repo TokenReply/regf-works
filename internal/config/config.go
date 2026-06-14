@@ -48,6 +48,7 @@ type MailConfig struct {
 	Ahem             AhemConfig     `mapstructure:"ahem"`
 	GPTMail          GPTMailConfig  `mapstructure:"gptmail"`
 	MoeMail          MoeMailConfig  `mapstructure:"moemail"`
+	DuckMail         DuckMailConfig `mapstructure:"duckmail"`
 }
 
 type YYDSMailConfig struct {
@@ -70,6 +71,12 @@ type MoeMailConfig struct {
 	APIKey     string `mapstructure:"api_key"`
 	Domains    string `mapstructure:"domains"`
 	ExpiryTime int64  `mapstructure:"expiry_time"` // 毫秒，默认 3600000 (1小时)
+}
+
+type DuckMailConfig struct {
+	BaseURL       string `mapstructure:"base_url"`        // 默认 https://api.duckmail.sbs
+	APIKey        string `mapstructure:"api_key"`        // dk_ 开头的 API Key
+	DefaultDomain string `mapstructure:"default_domain"` // 默认 duckmail.sbs
 }
 
 type TurnstileConfig struct {
@@ -198,6 +205,15 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("MOEMAIL_DOMAINS"); v != "" {
 		cfg.Mail.MoeMail.Domains = v
 	}
+	if v := os.Getenv("DUCKMAIL_BASE_URL"); v != "" {
+		cfg.Mail.DuckMail.BaseURL = v
+	}
+	if v := os.Getenv("DUCKMAIL_API_KEY"); v != "" {
+		cfg.Mail.DuckMail.APIKey = v
+	}
+	if v := os.Getenv("DUCKMAIL_DEFAULT_DOMAIN"); v != "" {
+		cfg.Mail.DuckMail.DefaultDomain = v
+	}
 	// Turnstile
 	if v := os.Getenv("TURNSTILE_SOLVER_PROXY"); v != "" {
 		cfg.Turnstile.SolverProxy = v
@@ -255,6 +271,9 @@ func (c *Config) ToGrokConfig() common.Config {
 		"moemail_api_key":       c.Mail.MoeMail.APIKey,
 		"moemail_domains":       c.Mail.MoeMail.Domains,
 		"moemail_expiry_time":   fmt.Sprintf("%d", c.Mail.MoeMail.ExpiryTime),
+		"duckmail_base_url":       c.Mail.DuckMail.BaseURL,
+		"duckmail_api_key":        c.Mail.DuckMail.APIKey,
+		"duckmail_default_domain": c.Mail.DuckMail.DefaultDomain,
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }
@@ -273,6 +292,9 @@ func (c *Config) ToFireworksConfig() common.Config {
 		"moemail_api_key":        c.Mail.MoeMail.APIKey,
 		"moemail_domains":        c.Mail.MoeMail.Domains,
 		"moemail_expiry_time":    fmt.Sprintf("%d", c.Mail.MoeMail.ExpiryTime),
+		"duckmail_base_url":       c.Mail.DuckMail.BaseURL,
+		"duckmail_api_key":        c.Mail.DuckMail.APIKey,
+		"duckmail_default_domain": c.Mail.DuckMail.DefaultDomain,
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }
@@ -294,6 +316,9 @@ func (c *Config) ToOpenRouterConfig() common.Config {
 		"moemail_api_key":        c.Mail.MoeMail.APIKey,
 		"moemail_domains":        c.Mail.MoeMail.Domains,
 		"moemail_expiry_time":    fmt.Sprintf("%d", c.Mail.MoeMail.ExpiryTime),
+		"duckmail_base_url":       c.Mail.DuckMail.BaseURL,
+		"duckmail_api_key":        c.Mail.DuckMail.APIKey,
+		"duckmail_default_domain": c.Mail.DuckMail.DefaultDomain,
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }
@@ -313,6 +338,9 @@ func (c *Config) ToNovitaConfig() common.Config {
 		"moemail_api_key":         c.Mail.MoeMail.APIKey,
 		"moemail_domains":         c.Mail.MoeMail.Domains,
 		"moemail_expiry_time":     fmt.Sprintf("%d", c.Mail.MoeMail.ExpiryTime),
+		"duckmail_base_url":       c.Mail.DuckMail.BaseURL,
+		"duckmail_api_key":        c.Mail.DuckMail.APIKey,
+		"duckmail_default_domain": c.Mail.DuckMail.DefaultDomain,
 		"email_provider_priority": c.Mail.ProviderPriority,
 	}
 }
@@ -370,6 +398,9 @@ func (c *Config) Save() error {
 	viper.Set("mail.moemail.api_key", c.Mail.MoeMail.APIKey)
 	viper.Set("mail.moemail.domains", c.Mail.MoeMail.Domains)
 	viper.Set("mail.moemail.expiry_time", c.Mail.MoeMail.ExpiryTime)
+	viper.Set("mail.duckmail.base_url", c.Mail.DuckMail.BaseURL)
+	viper.Set("mail.duckmail.api_key", c.Mail.DuckMail.APIKey)
+	viper.Set("mail.duckmail.default_domain", c.Mail.DuckMail.DefaultDomain)
 	viper.Set("turnstile.solver_urls", c.Turnstile.SolverURLs)
 	viper.Set("turnstile.solver_proxy", c.Turnstile.SolverProxy)
 	viper.Set("turnstile.capsolver_key", c.Turnstile.CapSolverKey)

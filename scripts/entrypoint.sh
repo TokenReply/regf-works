@@ -41,6 +41,11 @@ echo "[*] Starting Novita service on port 5002..."
 python3 /app/scripts/novita_reg.py --host 0.0.0.0 --port 5002 &
 NOVITA_PID=$!
 
+# 启动 Outlook 收件服务（后台，端口 5003）—— IMAP XOAUTH2，给 Go(grok) 调用
+echo "[*] Starting Outlook mail service on port 5003..."
+python3 /app/scripts/outlook_mail.py --host 0.0.0.0 --port 5003 &
+OUTLOOK_PID=$!
+
 # 等待服务就绪
 echo "[*] Waiting for services to be ready..."
 sleep 5

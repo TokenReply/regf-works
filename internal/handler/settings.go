@@ -43,6 +43,11 @@ type MailSettings struct {
 		Domains    string `json:"domains"`     // 可用域名列表（逗号分隔，留空自动获取）
 		ExpiryTime int64  `json:"expiry_time"` // 邮箱有效期（毫秒），默认 3600000 (1小时)
 	} `json:"moemail"`
+	DuckMail struct {
+		BaseURL       string `json:"base_url"`       // 默认 https://api.duckmail.sbs
+		APIKey        string `json:"api_key"`        // dk_ 开头的 API Key
+		DefaultDomain string `json:"default_domain"` // 默认 duckmail.sbs
+	} `json:"duckmail"`
 }
 
 // GetMailSettings GET /api/settings/mail — 获取当前邮箱配置
@@ -62,6 +67,9 @@ func (h *SettingsHandler) GetMailSettings(c *gin.Context) {
 	resp.MoeMail.APIKey = maskKey(h.cfg.Mail.MoeMail.APIKey)
 	resp.MoeMail.Domains = h.cfg.Mail.MoeMail.Domains
 	resp.MoeMail.ExpiryTime = h.cfg.Mail.MoeMail.ExpiryTime
+	resp.DuckMail.BaseURL = h.cfg.Mail.DuckMail.BaseURL
+	resp.DuckMail.APIKey = maskKey(h.cfg.Mail.DuckMail.APIKey)
+	resp.DuckMail.DefaultDomain = h.cfg.Mail.DuckMail.DefaultDomain
 
 	c.JSON(http.StatusOK, resp)
 }
@@ -115,6 +123,17 @@ func (h *SettingsHandler) UpdateMailSettings(c *gin.Context) {
 	h.cfg.Mail.MoeMail.Domains = req.MoeMail.Domains
 	if req.MoeMail.ExpiryTime > 0 {
 		h.cfg.Mail.MoeMail.ExpiryTime = req.MoeMail.ExpiryTime
+	}
+
+	// 更新 DuckMail 配置
+	if req.DuckMail.BaseURL != "" {
+		h.cfg.Mail.DuckMail.BaseURL = req.DuckMail.BaseURL
+	}
+	if req.DuckMail.APIKey != "" && req.DuckMail.APIKey != "***" {
+		h.cfg.Mail.DuckMail.APIKey = req.DuckMail.APIKey
+	}
+	if req.DuckMail.DefaultDomain != "" {
+		h.cfg.Mail.DuckMail.DefaultDomain = req.DuckMail.DefaultDomain
 	}
 
 	c.JSON(http.StatusOK, gin.H{

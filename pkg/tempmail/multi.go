@@ -126,6 +126,17 @@ func NewMultiProvider(cfg map[string]string) *MultiProvider {
 		}
 	}
 
+	// Outlook（预购 @outlook.com 账号池：refresh_token→IMAP XOAUTH2 收件，由 Python outlook_mail 服务读信）
+	// 账号文件默认 data/outlook_accounts.txt（容器内 /app/data/outlook_accounts.txt）。
+	if prioritySet["outlook"] {
+		available["outlook"] = NewOutlookProvider(
+			cfg["outlook_accounts_file"],
+			cfg["outlook_used_file"],
+			cfg["outlook_poll_url"],
+			cfg["outlook_mode"],
+		)
+	}
+
 	// 按优先级排列（严格模式：仅使用优先级列表中的 provider）
 	var providers []EmailProvider
 	for _, name := range strings.Split(priority, ",") {
