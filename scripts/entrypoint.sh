@@ -17,9 +17,10 @@ if [ ! -f /app/configs/config.yaml ]; then
   fi
 fi
 
-# 启动 Turnstile Solver（后台，端口 5072，2 线程）
-echo "[*] Starting Turnstile Solver on port 5072..."
-python3 /app/solver/api_solver.py --browser_type camoufox --thread 2 --port 5072 &
+# 启动 Turnstile Solver（后台，线程数可通过 SOLVER_THREADS 环境变量配置，默认 2）
+SOLVER_THREADS=${SOLVER_THREADS:-2}
+echo "[*] Starting Turnstile Solver on port 5072 (threads=$SOLVER_THREADS)..."
+python3 /app/solver/api_solver.py --browser_type camoufox --thread $SOLVER_THREADS --port 5072 &
 SOLVER_PID=$!
 
 # 启动 Fireworks Python 服务（后台，端口 5000）
