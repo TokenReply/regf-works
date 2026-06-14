@@ -81,6 +81,8 @@ func proxyChainDialer(firstProxy *url.URL) func(ctx context.Context, network, ad
 //  2. 有请求代理，无环境代理 → 直连请求代理
 //  3. 无请求代理 → 回退到环境变量代理
 //  4. 都没有 → 直连
+//
+// 所有模式都强制 IPv4 连接，避免 IPv6 超时问题。
 func ApplyProxy(transport *http.Transport, proxy *ProxyEntry) {
 	envProxy := envProxyURL()
 
@@ -111,5 +113,20 @@ func ApplyProxy(transport *http.Transport, proxy *ProxyEntry) {
 	default:
 		// 无请求代理 → 环境变量回退（有 Clash 走 Clash，没有就直连）
 		transport.Proxy = http.ProxyFromEnvironment
+	}
+
+	// 强制 IPv4：包装 DialContext，将 network 替换为 tcp4
+	origDial := transport.DialContext
+	if origDial == nil {
+		origDial = (&net.Dialer{
+			Timeout:   15 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext
+	}
+	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if network == "tcp" {
+			network = "tcp4"
+		}
+		return origDial(ctx, network, addr)
 	}
 }
