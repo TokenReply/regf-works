@@ -417,44 +417,70 @@ async def _poll_yydsmail_activation(
         logf("[-] 无 YYDS Mail 配置")
         return None
 
-    _ssl_ctx = ssl.create_default_context()
-    _ssl_ctx.check_hostname = False
-    _ssl_ctx.verify_mode = ssl.CERT_NONE
-
     base_url = yydsmail_url.rstrip("/")
     if not base_url.startswith("http"):
         base_url = "https://" + base_url
-    token_header = mail_meta.get("yydsmail_token", yydsmail_key)
+    # 用创建邮箱时返回的临时 token（优先），否则用 API Key
+    token = mail_meta.get("token", "")
+    use_bearer = bool(token)
+    if not token:
+        token = yydsmail_key
 
     for attempt in range(15):
         await asyncio.sleep(2)
         try:
-            req = urllib.request.Request(
-                f"{base_url}/api/emails?mailbox={urllib.parse.quote(email)}",
-                headers={"Authorization": f"Bearer {token_header}", "Accept": "application/json"}
-            )
-            with urllib.request.urlopen(req, context=_ssl_ctx, timeout=10) as resp:
-                data = json.loads(resp.read())
-                messages = data if isinstance(data, list) else data.get("messages", [])
+            async with httpx.AsyncClient(timeout=10, verify=False) as client:
+                headers = {}
+                if use_bearer:
+                    headers["Authorization"] = f"Bearer {token}"
+                else:
+                    headers["X-API-Key"] = token
+
+                # 获取邮件列表: GET /v1/messages?address=xxx
+                r = await client.get(
+                    f"{base_url}/v1/messages",
+                    params={"address": email},
+                    headers=headers,
+                )
+                if r.status_code != 200:
+                    if attempt % 3 == 0:
+                        logf(f"[*] yydsmail HTTP {r.status_code}, 重试中...")
+                    continue
+                data = r.json()
+                if not data.get("success"):
+                    continue
+                messages = data.get("data", {}).get("messages", [])
                 if not messages:
                     if attempt % 3 == 0:
                         logf(f"[*] 等待激活邮件 (yydsmail)... ({attempt * 2}s)")
                     continue
+
                 for msg in messages:
                     subject = msg.get("subject", "")
-                    if "confirm" in subject.lower() or "novita" in subject.lower():
+                    if "confirm" in subject.lower() or "novita" in subject.lower() or "activation" in subject.lower():
                         msg_id = msg.get("id", "")
-                        detail_req = urllib.request.Request(
-                            f"{base_url}/api/email/{urllib.parse.quote(msg_id)}",
-                            headers={"Authorization": f"Bearer {token_header}", "Accept": "application/json"}
+                        if not msg_id:
+                            continue
+                        # 获取详情: GET /v1/messages/{id}?address=xxx
+                        r2 = await client.get(
+                            f"{base_url}/v1/messages/{msg_id}",
+                            params={"address": email},
+                            headers=headers,
                         )
-                        with urllib.request.urlopen(detail_req, context=_ssl_ctx, timeout=10) as dresp:
-                            detail = json.loads(dresp.read())
-                            html = detail.get("html", detail.get("text", ""))
-                            token = _extract_novita_token(html)
-                            if token:
-                                logf("[+] 激活 token 已获取 (yydsmail)")
-                                return token
+                        if r2.status_code != 200:
+                            continue
+                        detail = r2.json().get("data", {})
+                        # 文档: text 是字符串, html 是数组
+                        text = detail.get("text", "")
+                        html_parts = detail.get("html", [])
+                        if isinstance(html_parts, list):
+                            html = " ".join(html_parts)
+                        else:
+                            html = str(html_parts)
+                        token_val = _extract_novita_token(text + " " + html)
+                        if token_val:
+                            logf("[+] 激活 token 已获取 (yydsmail)")
+                            return token_val
         except Exception as e:
             if attempt % 3 == 0:
                 logf(f"[*] yydsmail 出错: {e}, 重试中...")
