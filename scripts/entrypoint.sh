@@ -17,8 +17,18 @@ if [ ! -f /app/configs/config.yaml ]; then
   fi
 fi
 
-# 启动 Turnstile Solver（后台，线程数可通过 SOLVER_THREADS 环境变量配置，默认 2）
+# 从配置文件计算 Solver 线程数（取所有平台 max_concurrent 的最大值，至少 2）
+if [ -f /app/configs/config.yaml ]; then
+  SOLVER_THREADS=$(grep 'max_concurrent' /app/configs/config.yaml | awk '{print $2}' | sort -rn | head -1)
+fi
 SOLVER_THREADS=${SOLVER_THREADS:-2}
+if [ "$SOLVER_THREADS" -lt 2 ] 2>/dev/null; then
+  SOLVER_THREADS=2
+fi
+# 环境变量覆盖
+if [ -n "${SOLVER_THREADS_OVERRIDE:-}" ]; then
+  SOLVER_THREADS=$SOLVER_THREADS_OVERRIDE
+fi
 echo "[*] Starting Turnstile Solver on port 5072 (threads=$SOLVER_THREADS)..."
 python3 /app/solver/api_solver.py --browser_type camoufox --thread $SOLVER_THREADS --port 5072 &
 SOLVER_PID=$!
