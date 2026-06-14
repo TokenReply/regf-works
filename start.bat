@@ -2,26 +2,26 @@
 chcp 65001 >nul 2>&1
 title regf-works
 
-cd /d "D:\Python\fireworks-re\grok-fireworks-reg"
+cd /d "%~dp0"
 
 echo ========================================
 echo   regf-works
 echo ========================================
 echo.
 echo Please start Turnstile Solver first:
-echo   D:\Python\openrouter rot\openrouter\启动打码服务.bat
 echo   Port: 5072
 echo.
 echo Press any key to continue...
 pause >nul
 
-start "FW-Python" python scripts\fireworks_reg.py --host 0.0.0.0 --port 5000
-start "OR-Python" python scripts\openrouter_reg.py --host 0.0.0.0 --port 5001
-start "NV-Python" python scripts\novita_reg.py --host 0.0.0.0 --port 5002
+echo [*] Starting Python services...
+start "FW-Python" /min python scripts\fireworks_reg.py --host 0.0.0.0 --port 5000
+start "OR-Python" /min python scripts\openrouter_reg.py --host 0.0.0.0 --port 5001
+start "NV-Python" /min python scripts\novita_reg.py --host 0.0.0.0 --port 5002
 
 timeout /t 3 /nobreak >nul
 
-REM 设置代理环境变量（让 Go 服务走 Clash）
+REM Set proxy for Go service
 set HTTP_PROXY=http://127.0.0.1:7890
 set HTTPS_PROXY=http://127.0.0.1:7890
 set NO_PROXY=127.0.0.1,localhost
