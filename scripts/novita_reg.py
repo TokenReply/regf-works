@@ -52,16 +52,32 @@ NOVITA_HEADERS = {
     ),
 }
 
-# 问卷随机数据（大公司+大额度，提高获得额度的概率）
-ROLES = ["developer", "researcher", "engineering-manager", "data-scientist"]
-SPENDS = ["1000-10000", "10000-50000", "50000+"]
-FIRST_NAMES = ["James", "Robert", "Michael", "David", "William", "Richard", "Joseph", "Thomas",
-               "Daniel", "Matthew", "Andrew", "Christopher", "Brian", "Steven", "Kevin", "Mark"]
-LAST_NAMES = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Davis", "Miller", "Wilson",
-              "Anderson", "Taylor", "Thomas", "Jackson", "White", "Harris", "Martin", "Lee"]
-COMPANIES = ["Google", "Microsoft", "Amazon", "Meta", "Apple", "NVIDIA", "OpenAI", "Anthropic",
-             "Tesla", "Netflix", "Salesforce", "Adobe", "Intel", "IBM", "Oracle", "Uber",
-             "Stripe", "Databricks", "Snowflake", "Palantir"]
+# 问卷随机数据（真实选项值，大公司+高额度）
+ROLES = ["developer", "researcher", "startup-founder"]
+SPENDS = ["$100 - $1,000", "$1,000 - $10,000", ">$10,000"]
+FIRST_NAMES = [
+    "James", "Robert", "Michael", "David", "William", "Richard", "Joseph", "Thomas",
+    "Daniel", "Matthew", "Andrew", "Christopher", "Brian", "Steven", "Kevin", "Mark",
+    "Edward", "Jason", "Patrick", "Ryan", "Nathan", "Benjamin", "Alexander", "Nicholas",
+    "Samuel", "Timothy", "Jonathan", "Peter", "Stephen", "George", "Kenneth", "Henry",
+    "Eric", "Brandon", "Raymond", "Dennis", "Philip", "Harold", "Russell", "Eugene",
+]
+LAST_NAMES = [
+    "Smith", "Johnson", "Williams", "Brown", "Jones", "Davis", "Miller", "Wilson",
+    "Anderson", "Taylor", "Thomas", "Jackson", "White", "Harris", "Martin", "Lee",
+    "Thompson", "Garcia", "Martinez", "Robinson", "Clark", "Lewis", "Walker", "Hall",
+    "Allen", "Young", "King", "Wright", "Lopez", "Hill", "Scott", "Green",
+    "Adams", "Baker", "Nelson", "Carter", "Mitchell", "Roberts", "Turner", "Phillips",
+]
+COMPANIES = [
+    "Google", "Microsoft", "Amazon", "Meta", "Apple", "NVIDIA", "OpenAI", "Anthropic",
+    "Tesla", "Netflix", "Salesforce", "Adobe", "Intel", "IBM", "Oracle", "Uber",
+    "Stripe", "Databricks", "Snowflake", "Palantir", "SpaceX", "ByteDance", "Shopify",
+    "Cloudflare", "Datadog", "MongoDB", "Confluent", "HashiCorp", "Elastic", "Twilio",
+    "ServiceNow", "Workday", "Palo Alto Networks", "CrowdStrike", "Zscaler", "Okta",
+    "Figma", "Notion", "Vercel", "Supabase", "Hugging Face", "Stability AI", "Cohere",
+    "Scale AI", "Anyscale", "Weights & Biases", "LangChain", "Pinecone", "Weaviate",
+]
 
 # ─── Quart App ────────────────────────────────────────────────────────────
 app = Quart(__name__)
