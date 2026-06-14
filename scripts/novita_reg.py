@@ -62,7 +62,7 @@ COMPANIES = ["TechFlow AI", "DataVerse", "CloudMind", "NeuralHub", "AIForge", "D
 
 # ─── Quart App ────────────────────────────────────────────────────────────
 app = Quart(__name__)
-app.config["RESPONSE_TIMEOUT"] = 600  # 10 分钟（注册需要多次打码）
+app.config["RESPONSE_TIMEOUT"] = 300  # 5 分钟
 _MAX_CONCURRENT = int(os.environ.get("NOVITA_MAX_CONCURRENT", "5"))
 _novita_semaphore: asyncio.Semaphore
 
