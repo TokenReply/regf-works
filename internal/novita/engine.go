@@ -120,8 +120,10 @@ func Register(ctx context.Context, opts RegisterOpts) *common.RegisterResult {
 		errLower := strings.ToLower(result.Error)
 		if strings.Contains(errLower, "illegal") || strings.Contains(errLower, "blocked") {
 			d := tempmail.ExtractDomain(email)
-			novitaBlacklist.Ban(d)
-			logf("[!] 域名 %s 已拉黑", d)
+			// 窗口内累计达阈值才拉黑（好域偶发一次不误杀），拉黑 2h 后自动恢复
+			if novitaBlacklist.RecordIllegal(d) {
+				logf("[!] 域名 %s 多次 EMAIL_ILLEGAL，已拉黑 2h", d)
+			}
 		}
 	}
 

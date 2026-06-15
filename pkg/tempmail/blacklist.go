@@ -17,10 +17,19 @@ import (
 type DomainBlacklist struct {
 	platform string                 // "grok" 或 "fireworks"
 	domains  map[string]time.Time   // domain → banned time
+	fails    map[string][]time.Time // domain → 近期 EMAIL_ILLEGAL 时间戳（滑动窗口计数）
 	mu       sync.RWMutex
-	ttl      time.Duration          // 保留字段（兼容性），永久黑名单模式下不使用
-	filePath string                 // 持久化文件路径
+	ttl      time.Duration // 保留字段（兼容性），永久黑名单模式下不使用
+	filePath string        // 持久化文件路径
 }
+
+// 窗口化拉黑参数：illegalWindow 窗口内累计 EMAIL_ILLEGAL 达 illegalThreshold 次才真正拉黑；
+// 拉黑后经 banTTL 自动过期，域名可恢复（避免好域被一次性失败永久误杀）。
+const (
+	illegalThreshold = 3
+	illegalWindow    = 30 * time.Minute
+	banTTL           = 2 * time.Hour
+)
 
 // allBlacklists 全局黑名单持久化数据结构
 type allBlacklists struct {
@@ -36,6 +45,7 @@ func NewDomainBlacklist(platform string, ttl time.Duration, filePath string) *Do
 	b := &DomainBlacklist{
 		platform: strings.ToLower(platform),
 		domains:  make(map[string]time.Time),
+		fails:    make(map[string][]time.Time),
 		ttl:      ttl,
 		filePath: filePath,
 	}
@@ -68,6 +78,45 @@ func (b *DomainBlacklist) Ban(domain string) {
 	go b.save()
 }
 
+// RecordIllegal 记录一次 EMAIL_ILLEGAL；illegalWindow 窗口内累计达 illegalThreshold 次才真正拉黑。
+// 返回本次是否触发了拉黑（用于日志）。好域偶发一次 EMAIL_ILLEGAL 不会被误杀。
+func (b *DomainBlacklist) RecordIllegal(domain string) bool {
+	domain = normalizeDomain(domain)
+	if domain == "" {
+		return false
+	}
+	now := time.Now()
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// 已在黑名单且未过期：无需重复处理
+	if t, ok := b.domains[domain]; ok && now.Sub(t) <= banTTL {
+		return false
+	}
+
+	// 追加时间戳并裁掉窗口外的旧记录
+	ts := append(b.fails[domain], now)
+	kept := ts[:0]
+	for _, t := range ts {
+		if now.Sub(t) <= illegalWindow {
+			kept = append(kept, t)
+		}
+	}
+
+	if len(kept) >= illegalThreshold {
+		b.domains[domain] = now
+		delete(b.fails, domain)
+		log.Info().Str("platform", b.platform).Str("domain", domain).Int("hits", len(kept)).Msg("域名达阈值已拉黑")
+		go b.save()
+		return true
+	}
+
+	b.fails[domain] = kept
+	log.Debug().Str("platform", b.platform).Str("domain", domain).Int("count", len(kept)).Msg("EMAIL_ILLEGAL 计数(未达阈值)")
+	return false
+}
+
 // IsBanned 检查域名是否在黑名单中
 func (b *DomainBlacklist) IsBanned(domain string) bool {
 	domain = normalizeDomain(domain)
@@ -76,10 +125,17 @@ func (b *DomainBlacklist) IsBanned(domain string) bool {
 	}
 
 	b.mu.RLock()
-	_, ok := b.domains[domain]
+	t, ok := b.domains[domain]
 	b.mu.RUnlock()
 
-	return ok
+	if !ok {
+		return false
+	}
+	// 拉黑超过 banTTL 自动过期（域名恢复可用）
+	if time.Since(t) > banTTL {
+		return false
+	}
+	return true
 }
 
 // Unban 从黑名单移除单个域名
@@ -134,9 +190,29 @@ func (b *DomainBlacklist) Clear() {
 	go b.save()
 }
 
-// CleanExpired 清理所有过期条目（永久黑名单模式下此函数为空操作）
+// CleanExpired 清理超过 banTTL 的拉黑条目，以及窗口外的失败计数，保持内存/持久化文件有界
 func (b *DomainBlacklist) CleanExpired() {
-	// 永久黑名单模式，不清理过期条目
+	now := time.Now()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for d, t := range b.domains {
+		if now.Sub(t) > banTTL {
+			delete(b.domains, d)
+		}
+	}
+	for d, ts := range b.fails {
+		kept := ts[:0]
+		for _, t := range ts {
+			if now.Sub(t) <= illegalWindow {
+				kept = append(kept, t)
+			}
+		}
+		if len(kept) == 0 {
+			delete(b.fails, d)
+		} else {
+			b.fails[d] = kept
+		}
+	}
 }
 
 // save 保存黑名单到 JSON 文件（异步调用，内部处理错误）
@@ -248,6 +324,7 @@ func (b *DomainBlacklist) autoCleanAndSave() {
 	defer ticker.Stop()
 
 	for range ticker.C {
+		b.CleanExpired()
 		b.save()
 	}
 }
